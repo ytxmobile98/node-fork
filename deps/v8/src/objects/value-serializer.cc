@@ -603,6 +603,20 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(Handle<JSReceiver> receiver) {
 
 Maybe<bool> ValueSerializer::WriteJSObject(Handle<JSObject> object) {
   DCHECK(!object->map().IsCustomElementsReceiverMap());
+
+  {
+    Handle<Object> maybe_constructor(object->map().GetConstructor(), isolate_);
+    if (maybe_constructor->IsJSFunction()) {
+      Handle<JSFunction> constructor = Handle<JSFunction>::cast(maybe_constructor);
+      Handle<Symbol> name = ReadOnlyRoots(isolate_).serializer_host_object_symbol_handle();
+      LookupIterator it(isolate_, constructor, name, constructor,
+                      LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
+      if (it.IsFound()) {
+        return WriteHostObject(object);
+      }
+    }
+  }
+
   const bool can_serialize_fast =
       object->HasFastProperties() && object->elements().length() == 0;
   if (!can_serialize_fast) return WriteJSObjectSlow(object);

@@ -440,6 +440,7 @@
   V(_, regexp_result_regexp_input_symbol)      \
   V(_, regexp_result_regexp_last_index_symbol) \
   V(_, sealed_symbol)                          \
+  V(_, serializer_host_object_symbol)          \
   V(_, stack_trace_symbol)                     \
   V(_, strict_function_transition_symbol)      \
   V(_, wasm_exception_tag_symbol)              \

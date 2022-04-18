@@ -30,6 +30,7 @@ using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Nothing;
 using v8::Object;
+using v8::Private;
 using v8::SharedArrayBuffer;
 using v8::String;
 using v8::Symbol;
@@ -291,6 +292,9 @@ class SerializerDelegate : public ValueSerializer::Delegate {
     if (env_->base_object_ctor_template()->HasInstance(object)) {
       return WriteHostObject(
           BaseObjectPtr<BaseObject> { Unwrap<BaseObject>(object) });
+    }
+
+    if (object->HasPrivate(context_, ValueSerializer::GetHostObjectTag(env_->isolate())).IsJust()) {
     }
 
     ThrowDataCloneError(env_->clone_unsupported_type_str());
@@ -1491,6 +1495,12 @@ static void InitMessaging(Local<Object> target,
               FIXED_ONE_BYTE_STRING(env->isolate(), "DOMException"),
               domexception)
         .Check();
+  }
+
+  {
+    Local<Private> priv_symbol = ValueSerializer::GetHostObjectTag(env->isolate());
+    Local<Symbol> symbol = *reinterpret_cast<Local<Symbol>*>(&priv_symbol);
+    target->Set(context, FIXED_ONE_BYTE_STRING(env->isolate(), "hostObjectTag"), symbol).Check();
   }
 }
 

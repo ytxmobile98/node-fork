@@ -3462,6 +3462,13 @@ void ValueSerializer::WriteRawBytes(const void* source, size_t length) {
   private_->serializer.WriteRawBytes(source, length);
 }
 
+Local<Private> ValueSerializer::GetHostObjectTag(Isolate* v8_isolate) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  i::Handle<i::Symbol> symbol = i::ReadOnlyRoots(isolate).serializer_host_object_symbol_handle();
+  Local<Symbol> result = Utils::ToLocal(symbol);
+  return *reinterpret_cast<Local<Private>*>(&result);
+}
+
 MaybeLocal<Object> ValueDeserializer::Delegate::ReadHostObject(
     Isolate* v8_isolate) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
