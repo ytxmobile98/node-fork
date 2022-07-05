@@ -36,7 +36,7 @@ if (process.argv[2] === 'wasi-child') {
   const cp = require('child_process');
   const { checkoutEOL } = common;
 
-  function runWASI(options) {
+  function innerRunWASI(options, args) {
     console.log('executing', options.test);
     const opts = {
       env: {
@@ -50,6 +50,7 @@ if (process.argv[2] === 'wasi-child') {
       opts.input = options.stdin;
 
     const child = cp.spawnSync(process.execPath, [
+      ...args,
       '--experimental-wasi-unstable-preview1',
       __filename,
       'wasi-child',
@@ -59,6 +60,14 @@ if (process.argv[2] === 'wasi-child') {
     assert.strictEqual(child.status, options.exitCode || 0);
     assert.strictEqual(child.signal, null);
     assert.strictEqual(child.stdout.toString(), options.stdout || '');
+  }
+
+  function runWASI(options) {
+    innerRunWASI(options, ['--no-turbo-fast-api-calls']);
+    // There's some sort of V8 bug on apple silicon
+    if (!(process.platform === 'darwin' && process.arch === 'arm64')) {
+      innerRunWASI(options, ['--turbo-fast-api-calls']);
+    }
   }
 
   runWASI({ test: 'cant_dotdot' });
