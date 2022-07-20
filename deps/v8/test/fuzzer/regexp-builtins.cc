@@ -14,9 +14,7 @@
 #include "include/v8-local-handle.h"
 #include "include/v8-primitive.h"
 #include "include/v8-script.h"
-#include "src/heap/factory.h"
 #include "src/objects/objects-inl.h"
-#include "src/regexp/regexp.h"
 #include "test/fuzzer/fuzzer-support.h"
 
 // This is a hexdump of test/fuzzer/regexp_builtins/mjsunit.js generated using
@@ -186,7 +184,7 @@ std::string PickRandomPresetPattern(FuzzerArgs* args) {
       "\\p{Changes_When_NFKC_Casefolded}",
   };
   static constexpr int preset_pattern_count = arraysize(preset_patterns);
-  STATIC_ASSERT(preset_pattern_count < 0xFF);
+  static_assert(preset_pattern_count < 0xFF);
 
   return std::string(preset_patterns[RandomByte(args) % preset_pattern_count]);
 }
@@ -250,7 +248,7 @@ std::string GenerateRandomFlags(FuzzerArgs* args) {
   CHECK_EQ(JSRegExp::kHasIndices, 1 << (kFlagCount - 1));
   CHECK_EQ(JSRegExp::kLinear, 1 << (kFlagCount - 2));
   CHECK_EQ(JSRegExp::kDotAll, 1 << (kFlagCount - 3));
-  STATIC_ASSERT((1 << kFlagCount) - 1 <= 0xFF);
+  static_assert((1 << kFlagCount) - 1 <= 0xFF);
 
   const size_t flags = RandomByte(args) & ((1 << kFlagCount) - 1);
 

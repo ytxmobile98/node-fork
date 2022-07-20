@@ -32,7 +32,6 @@
 
 #include <stdlib.h>
 
-#include "include/v8-initialization.h"
 #include "include/v8-json.h"
 #include "src/api/api-inl.h"
 #include "src/base/platform/elapsed-timer.h"
@@ -40,9 +39,7 @@
 #include "src/execution/messages.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-inl.h"
-#include "src/init/v8.h"
 #include "src/objects/objects-inl.h"
-#include "src/strings/unicode-decoder.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
 
@@ -1657,7 +1654,7 @@ TEST(InvalidExternalString) {
     CcTest::InitializeVM();                                              \
     LocalContext context;                                                \
     Isolate* isolate = CcTest::i_isolate();                              \
-    STATIC_ASSERT(String::kMaxLength < kMaxInt);                         \
+    static_assert(String::kMaxLength < kMaxInt);                         \
     static const int invalid = String::kMaxLength + 1;                   \
     HandleScope scope(isolate);                                          \
     v8::base::Vector<TYPE> dummy = v8::base::Vector<TYPE>::New(invalid); \
@@ -1922,6 +1919,8 @@ class OneByteStringResource : public v8::String::ExternalOneByteStringResource {
 TEST(Regress876759) {
   // Thin strings are used in conjunction with young gen
   if (FLAG_single_generation) return;
+  // We don't create ThinStrings immediately when using the forwarding table.
+  if (FLAG_always_use_string_forwarding_table) return;
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
 

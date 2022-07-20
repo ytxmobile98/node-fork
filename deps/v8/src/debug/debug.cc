@@ -8,10 +8,8 @@
 #include <unordered_set>
 
 #include "src/api/api-inl.h"
-#include "src/api/api-natives.h"
 #include "src/base/platform/mutex.h"
 #include "src/builtins/builtins.h"
-#include "src/codegen/assembler-inl.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/codegen/compiler.h"
 #include "src/common/assert-scope.h"
@@ -20,7 +18,6 @@
 #include "src/debug/debug-evaluate.h"
 #include "src/debug/liveedit.h"
 #include "src/deoptimizer/deoptimizer.h"
-#include "src/execution/arguments.h"
 #include "src/execution/execution.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
@@ -29,7 +26,6 @@
 #include "src/heap/heap-inl.h"  // For NextDebuggingId.
 #include "src/init/bootstrapper.h"
 #include "src/interpreter/bytecode-array-iterator.h"
-#include "src/interpreter/interpreter.h"
 #include "src/logging/counters.h"
 #include "src/logging/runtime-call-stats-scope.h"
 #include "src/objects/api-callbacks-inl.h"
@@ -38,7 +34,6 @@
 #include "src/objects/js-promise-inl.h"
 #include "src/objects/slots.h"
 #include "src/snapshot/embedded/embedded-data.h"
-#include "src/snapshot/snapshot.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-debug.h"
@@ -160,7 +155,8 @@ void BreakLocation::AllAtCurrentStatement(
   auto summary = FrameSummary::GetTop(frame).AsJavaScript();
   int offset = summary.code_offset();
   Handle<AbstractCode> abstract_code = summary.abstract_code();
-  if (abstract_code->IsCode()) offset = offset - 1;
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*debug_info);
+  if (abstract_code->IsCode(cage_base)) offset = offset - 1;
   int statement_position;
   {
     BreakIterator it(debug_info);
@@ -215,7 +211,7 @@ bool BreakLocation::HasBreakPoint(Isolate* isolate,
     // Then check whether a break point at that source position would have
     // the same code offset. Otherwise it's just a break location that we can
     // step to, but not actually a location where we can put a break point.
-    DCHECK(abstract_code_->IsBytecodeArray());
+    DCHECK(abstract_code_->IsBytecodeArray(isolate));
     BreakIterator it(debug_info);
     it.SkipToPosition(position_);
     return it.code_offset() == code_offset_;
@@ -385,6 +381,7 @@ void Debug::ThreadInit() {
   thread_local_.target_frame_count_ = -1;
   thread_local_.return_value_ = Smi::zero();
   thread_local_.last_breakpoint_id_ = 0;
+  clear_restart_frame();
   clear_suspended_generator();
   base::Relaxed_Store(&thread_local_.current_debug_scope_,
                       static_cast<base::AtomicWord>(0));
@@ -1140,7 +1137,7 @@ void Debug::PrepareStepOnThrow() {
         // If it only contains one function, we already found the handler.
         if (summaries.size() > 1) {
           Handle<AbstractCode> code = summary.AsJavaScript().abstract_code();
-          CHECK_EQ(CodeKind::INTERPRETED_FUNCTION, code->kind());
+          CHECK_EQ(CodeKind::INTERPRETED_FUNCTION, code->kind(isolate_));
           HandlerTable table(code->GetBytecodeArray());
           int code_offset = summary.code_offset();
           HandlerTable::CatchPrediction prediction;
@@ -1232,7 +1229,8 @@ void Debug::PrepareStep(StepAction step_action) {
     if (step_action == StepOver && IsBlackboxed(shared)) step_action = StepOut;
 
     thread_local_.last_statement_position_ =
-        summary.abstract_code()->SourceStatementPosition(summary.code_offset());
+        summary.abstract_code()->SourceStatementPosition(isolate_,
+                                                         summary.code_offset());
     thread_local_.last_frame_count_ = current_frame_count;
     // No longer perform the current async step.
     clear_suspended_generator();
@@ -1379,6 +1377,7 @@ void Debug::ClearStepping() {
   thread_local_.last_frame_count_ = -1;
   thread_local_.target_frame_count_ = -1;
   thread_local_.break_on_next_function_call_ = false;
+  clear_restart_frame();
   UpdateHookOnFunctionCall();
 }
 
@@ -1645,6 +1644,7 @@ bool CompileTopLevel(Isolate* isolate, Handle<Script> script) {
   ReusableUnoptimizedCompileState reusable_state(isolate);
   UnoptimizedCompileFlags flags =
       UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
+  flags.set_is_reparse(true);
   ParseInfo parse_info(isolate, flags, &compile_state, &reusable_state);
   IsCompiledScope is_compiled_scope;
   const MaybeHandle<SharedFunctionInfo> maybe_result =
@@ -2374,12 +2374,14 @@ bool Debug::CanBreakAtEntry(Handle<SharedFunctionInfo> shared) {
 }
 
 bool Debug::SetScriptSource(Handle<Script> script, Handle<String> source,
-                            bool preview, debug::LiveEditResult* result) {
+                            bool preview, bool allow_top_frame_live_editing,
+                            debug::LiveEditResult* result) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   DebugScope debug_scope(this);
   feature_tracker()->Track(DebugFeatureTracker::kLiveEdit);
   running_live_edit_ = true;
-  LiveEdit::PatchScript(isolate_, script, source, preview, result);
+  LiveEdit::PatchScript(isolate_, script, source, preview,
+                        allow_top_frame_live_editing, result);
   running_live_edit_ = false;
   return result->status == debug::LiveEditResult::OK;
 }
@@ -2462,7 +2464,7 @@ void Debug::UpdateState() {
 }
 
 void Debug::UpdateHookOnFunctionCall() {
-  STATIC_ASSERT(LastStepAction == StepInto);
+  static_assert(LastStepAction == StepInto);
   hook_on_function_call_ =
       thread_local_.last_step_action_ == StepInto ||
       isolate_->debug_execution_mode() == DebugInfo::kSideEffects ||
@@ -2686,8 +2688,7 @@ void Debug::StopSideEffectCheckMode() {
   DCHECK(isolate_->debug_execution_mode() == DebugInfo::kSideEffects);
   if (side_effect_check_failed_) {
     DCHECK(isolate_->has_pending_exception());
-    DCHECK_EQ(ReadOnlyRoots(isolate_).termination_exception(),
-              isolate_->pending_exception());
+    DCHECK(isolate_->is_execution_termination_pending());
     // Convert the termination exception into a regular exception.
     isolate_->CancelTerminateExecution();
     isolate_->Throw(*isolate_->factory()->NewEvalError(
@@ -2909,6 +2910,19 @@ bool Debug::GetTemporaryObjectTrackingDisabled() const {
     return temporary_objects_->disabled;
   }
   return false;
+}
+
+void Debug::PrepareRestartFrame(JavaScriptFrame* frame,
+                                int inlined_frame_index) {
+  if (frame->is_optimized()) Deoptimizer::DeoptimizeFunction(frame->function());
+
+  thread_local_.restart_frame_id_ = frame->id();
+  thread_local_.restart_inline_frame_index_ = inlined_frame_index;
+
+  // TODO(crbug.com/1303521): A full "StepInto" is probably not needed. Get the
+  // necessary bits out of PrepareSTep into a separate method or fold them
+  // into Debug::PrepareRestartFrame.
+  PrepareStep(StepInto);
 }
 
 }  // namespace internal

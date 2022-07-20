@@ -3,9 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/execution/isolate.h"
-#include "src/handles/global-handles.h"
 #include "src/heap/factory-inl.h"
-#include "src/init/v8.h"
 #include "src/temporal/temporal-parser.h"
 #include "test/cctest/cctest.h"
 
@@ -53,40 +51,37 @@ void CheckTimeZoneNumericUTCOffset(const ParsedISO8601Result& actual,
   CHECK_EQ(tzuo_nanosecond, actual.tzuo_nanosecond);
 }
 
-#define IMPL_VERIFY_PARSE_TEMPORAL_DATE_STRING_SUCCESS(R)                     \
-  void VerifyParseTemporal##R##StringSuccess(                                 \
-      Isolate* isolate, const char* str, int32_t date_year,                   \
-      int32_t date_month, int32_t date_day, const char* calendar_name) {      \
-    Handle<String> input = CcTest::MakeString(str);                           \
-    ParsedISO8601Result actual =                                              \
-        TemporalParser::ParseTemporal##R##String(isolate, input).ToChecked(); \
-    CheckDate(actual, date_year, date_month, date_day);                       \
-    CheckCalendar(isolate, input, actual.calendar_name_start,                 \
-                  actual.calendar_name_length, calendar_name);                \
+#define IMPL_VERIFY_PARSE_TEMPORAL_DATE_STRING_SUCCESS(R)                \
+  void VerifyParseTemporal##R##StringSuccess(                            \
+      Isolate* isolate, const char* str, int32_t date_year,              \
+      int32_t date_month, int32_t date_day, const char* calendar_name) { \
+    Handle<String> input = CcTest::MakeString(str);                      \
+    ParsedISO8601Result actual =                                         \
+        *TemporalParser::ParseTemporal##R##String(isolate, input);       \
+    CheckDate(actual, date_year, date_month, date_day);                  \
+    CheckCalendar(isolate, input, actual.calendar_name_start,            \
+                  actual.calendar_name_length, calendar_name);           \
   }
 
-IMPL_VERIFY_PARSE_TEMPORAL_DATE_STRING_SUCCESS(Date)
 IMPL_VERIFY_PARSE_TEMPORAL_DATE_STRING_SUCCESS(YearMonth)
 IMPL_VERIFY_PARSE_TEMPORAL_DATE_STRING_SUCCESS(MonthDay)
-IMPL_VERIFY_PARSE_TEMPORAL_DATE_STRING_SUCCESS(RelativeTo)
 
-#define IMPL_VERIFY_PARSE_TEMPORAL_DATE_TIME_STRING_SUCCESS(R)                \
-  void VerifyParseTemporal##R##StringSuccess(                                 \
-      Isolate* isolate, const char* str, int32_t date_year,                   \
-      int32_t date_month, int32_t date_day, int32_t time_hour,                \
-      int32_t time_minute, int32_t time_second, int32_t time_nanosecond,      \
-      const char* calendar_name) {                                            \
-    Handle<String> input = CcTest::MakeString(str);                           \
-    ParsedISO8601Result actual =                                              \
-        TemporalParser::ParseTemporal##R##String(isolate, input).ToChecked(); \
-    CheckDate(actual, date_year, date_month, date_day);                       \
-    CheckCalendar(isolate, input, actual.calendar_name_start,                 \
-                  actual.calendar_name_length, calendar_name);                \
-    CheckTime(actual, time_hour, time_minute, time_second, time_nanosecond);  \
+#define IMPL_VERIFY_PARSE_TEMPORAL_DATE_TIME_STRING_SUCCESS(R)               \
+  void VerifyParseTemporal##R##StringSuccess(                                \
+      Isolate* isolate, const char* str, int32_t date_year,                  \
+      int32_t date_month, int32_t date_day, int32_t time_hour,               \
+      int32_t time_minute, int32_t time_second, int32_t time_nanosecond,     \
+      const char* calendar_name) {                                           \
+    Handle<String> input = CcTest::MakeString(str);                          \
+    ParsedISO8601Result actual =                                             \
+        *TemporalParser::ParseTemporal##R##String(isolate, input);           \
+    CheckDate(actual, date_year, date_month, date_day);                      \
+    CheckCalendar(isolate, input, actual.calendar_name_start,                \
+                  actual.calendar_name_length, calendar_name);               \
+    CheckTime(actual, time_hour, time_minute, time_second, time_nanosecond); \
   }
 
 IMPL_VERIFY_PARSE_TEMPORAL_DATE_TIME_STRING_SUCCESS(DateTime)
-IMPL_VERIFY_PARSE_TEMPORAL_DATE_TIME_STRING_SUCCESS(RelativeTo)
 
 #define IMPL_VERIFY_PARSE_TEMPORAL_ZONED_DATE_TIME_STRING_SUCCESS(R)           \
   void VerifyParseTemporal##R##StringSuccess(                                  \
@@ -98,7 +93,7 @@ IMPL_VERIFY_PARSE_TEMPORAL_DATE_TIME_STRING_SUCCESS(RelativeTo)
       bool utc_designator, const char* tzi_name) {                             \
     Handle<String> input = CcTest::MakeString(str);                            \
     ParsedISO8601Result actual =                                               \
-        TemporalParser::ParseTemporal##R##String(isolate, input).ToChecked();  \
+        *TemporalParser::ParseTemporal##R##String(isolate, input);             \
     CheckDate(actual, date_year, date_month, date_day);                        \
     CheckCalendar(isolate, input, actual.calendar_name_start,                  \
                   actual.calendar_name_length, calendar_name);                 \
@@ -114,7 +109,6 @@ IMPL_VERIFY_PARSE_TEMPORAL_DATE_TIME_STRING_SUCCESS(RelativeTo)
   }
 
 IMPL_VERIFY_PARSE_TEMPORAL_ZONED_DATE_TIME_STRING_SUCCESS(ZonedDateTime)
-IMPL_VERIFY_PARSE_TEMPORAL_ZONED_DATE_TIME_STRING_SUCCESS(RelativeTo)
 
 void VerifyParseTemporalInstantStringSuccess(
     Isolate* isolate, const char* str, bool utc_designator, int32_t tzuo_sign,
@@ -122,7 +116,7 @@ void VerifyParseTemporalInstantStringSuccess(
     int32_t tzuo_nanosecond) {
   Handle<String> input = CcTest::MakeString(str);
   ParsedISO8601Result actual =
-      TemporalParser::ParseTemporalInstantString(isolate, input).ToChecked();
+      *TemporalParser::ParseTemporalInstantString(isolate, input);
   CHECK_EQ(utc_designator, actual.utc_designator);
   if (!utc_designator) {
     CheckTimeZoneNumericUTCOffset(actual, tzuo_sign, tzuo_hour, tzuo_minute,
@@ -134,15 +128,15 @@ void VerifyParseTemporalCalendarStringSuccess(
     Isolate* isolate, const char* str, const std::string& calendar_name) {
   Handle<String> input = CcTest::MakeString(str);
   ParsedISO8601Result actual =
-      TemporalParser::ParseTemporalCalendarString(isolate, input).ToChecked();
+      *TemporalParser::ParseTemporalCalendarString(isolate, input);
   CheckCalendar(isolate, input, actual.calendar_name_start,
                 actual.calendar_name_length, calendar_name);
 }
 
-#define VERIFY_PARSE_FAIL(R, str)                                \
-  do {                                                           \
-    Handle<String> input = CcTest::MakeString(str);              \
-    CHECK(TemporalParser::Parse##R(isolate, input).IsNothing()); \
+#define VERIFY_PARSE_FAIL(R, str)                                 \
+  do {                                                            \
+    Handle<String> input = CcTest::MakeString(str);               \
+    CHECK(!TemporalParser::Parse##R(isolate, input).has_value()); \
   } while (false)
 
 void VerifyParseTemporalTimeStringSuccess(
@@ -150,234 +144,10 @@ void VerifyParseTemporalTimeStringSuccess(
     int32_t time_second, int32_t time_nanosecond, const char* calendar_name) {
   Handle<String> input = CcTest::MakeString(str);
   ParsedISO8601Result actual =
-      TemporalParser::ParseTemporalTimeString(isolate, input).ToChecked();
+      *TemporalParser::ParseTemporalTimeString(isolate, input);
   CheckTime(actual, time_hour, time_minute, time_second, time_nanosecond);
   CheckCalendar(isolate, input, actual.calendar_name_start,
                 actual.calendar_name_length, calendar_name);
-}
-
-TEST(TemporalDateStringSuccess) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  v8::HandleScope scope(CcTest::isolate());
-
-  // CalendarDateTime : DateTime Calendaropt
-  // DateTime
-  // DateYear - DateMonth - DateDay
-  VerifyParseTemporalDateStringSuccess(isolate, "2021-11-03", 2021, 11, 03, "");
-  // DateYear DateMonth DateDay
-  VerifyParseTemporalDateStringSuccess(isolate, "20211103", 2021, 11, 03, "");
-  // DateExtendedYear
-  VerifyParseTemporalDateStringSuccess(isolate, "+002021-11-03", 2021, 11, 03,
-                                       "");
-  VerifyParseTemporalDateStringSuccess(isolate, "+000001-11-03", 1, 11, 03, "");
-  VerifyParseTemporalDateStringSuccess(isolate, "+0020211103", 2021, 11, 03,
-                                       "");
-  VerifyParseTemporalDateStringSuccess(isolate, "+0000011231", 1, 12, 31, "");
-  VerifyParseTemporalDateStringSuccess(isolate, "+0000000101", 0, 1, 1, "");
-  VerifyParseTemporalDateStringSuccess(isolate, "+0000000101", 0, 1, 1, "");
-  VerifyParseTemporalDateStringSuccess(isolate, "-0000000101", 0, 1, 1, "");
-  VerifyParseTemporalDateStringSuccess(isolate, u8"\u22120000000101", 0, 1, 1,
-                                       "");
-  VerifyParseTemporalDateStringSuccess(isolate, "-0000000101", 0, 1, 1, "");
-  VerifyParseTemporalDateStringSuccess(isolate, "+654321-11-03", 654321, 11, 3,
-                                       "");
-  VerifyParseTemporalDateStringSuccess(isolate, "+999999-12-31", 999999, 12, 31,
-                                       "");
-  VerifyParseTemporalDateStringSuccess(isolate, "-654321-11-03", -654321, 11, 3,
-                                       "");
-  VerifyParseTemporalDateStringSuccess(isolate, "-999999-12-31", -999999, 12,
-                                       31, "");
-  VerifyParseTemporalDateStringSuccess(isolate, u8"\u2212999999-12-31", -999999,
-                                       12, 31, "");
-  VerifyParseTemporalDateStringSuccess(isolate, "+6543211103", 654321, 11, 3,
-                                       "");
-  VerifyParseTemporalDateStringSuccess(isolate, "+9999991231", 999999, 12, 31,
-                                       "");
-  VerifyParseTemporalDateStringSuccess(isolate, "-6543211103", -654321, 11, 3,
-                                       "");
-  VerifyParseTemporalDateStringSuccess(isolate, "-9999991231", -999999, 12, 31,
-                                       "");
-  VerifyParseTemporalDateStringSuccess(isolate, u8"\u22129999991231", -999999,
-                                       12, 31, "");
-
-  // DateTime: Date TimeSpecSeparator_opt TimeZone_opt
-  // Date TimeSpecSeparator
-  // Differeent DateTimeSeparator: <S> T or t
-  VerifyParseTemporalDateStringSuccess(isolate, "2021-11-09T01", 2021, 11, 9,
-                                       "");
-  VerifyParseTemporalDateStringSuccess(isolate, "2021-12-07t01", 2021, 12, 7,
-                                       "");
-  VerifyParseTemporalDateStringSuccess(isolate, "2021-09-31 01", 2021, 9, 31,
-                                       "");
-  VerifyParseTemporalDateStringSuccess(isolate, "2021-11-09T0102", 2021, 11, 9,
-                                       "");
-  VerifyParseTemporalDateStringSuccess(isolate, "2021-12-07t01:02", 2021, 12, 7,
-                                       "");
-  VerifyParseTemporalDateStringSuccess(isolate, "2021-09-31 01:03:04", 2021, 9,
-                                       31, "");
-  VerifyParseTemporalDateStringSuccess(isolate, "2021-09-31 01:03:60", 2021, 9,
-                                       31, "");
-  VerifyParseTemporalDateStringSuccess(isolate, "2021-09-31 010304", 2021, 9,
-                                       31, "");
-  VerifyParseTemporalDateStringSuccess(isolate, "2021-09-31 01:03:04.987654321",
-                                       2021, 9, 31, "");
-  VerifyParseTemporalDateStringSuccess(isolate, "1964-07-10 01:03:04,1", 1964,
-                                       7, 10, "");
-  VerifyParseTemporalDateStringSuccess(isolate, "1964-07-10 01:03:60,1", 1964,
-                                       7, 10, "");
-  VerifyParseTemporalDateStringSuccess(isolate, "1964-07-10 01:03:04,123456789",
-                                       1964, 7, 10, "");
-  VerifyParseTemporalDateStringSuccess(isolate, "19640710 01:03:04,123456789",
-                                       1964, 7, 10, "");
-  // Date TimeZone
-  // Date TimeZoneOffsetRequired
-  // Date TimeZoneUTCOffset TimeZoneBracketedAnnotation_opt
-  // Date TimeZoneNumericUTCOffset
-  VerifyParseTemporalDateStringSuccess(isolate, "2021-11-09+11", 2021, 11, 9,
-                                       "");
-  VerifyParseTemporalDateStringSuccess(isolate, "2021-11-09-12:03", 2021, 11, 9,
-                                       "");
-  VerifyParseTemporalDateStringSuccess(isolate, "2021-11-09-1203", 2021, 11, 9,
-                                       "");
-  VerifyParseTemporalDateStringSuccess(isolate, "2021-11-09-12:03:04", 2021, 11,
-                                       9, "");
-  VerifyParseTemporalDateStringSuccess(isolate, "2021-11-09-120304", 2021, 11,
-                                       9, "");
-  VerifyParseTemporalDateStringSuccess(isolate, "2021-11-09-12:03:04,987654321",
-                                       2021, 11, 9, "");
-  VerifyParseTemporalDateStringSuccess(isolate, "2021-11-09-120304.123456789",
-                                       2021, 11, 9, "");
-  VerifyParseTemporalDateStringSuccess(isolate, "2021-11-09T03+11", 2021, 11, 9,
-                                       "");
-  VerifyParseTemporalDateStringSuccess(isolate, "2021-11-09t04:55-12:03", 2021,
-                                       11, 9, "");
-  VerifyParseTemporalDateStringSuccess(isolate, "2021-11-09t06:22:01.987654321",
-                                       2021, 11, 9, "");
-  VerifyParseTemporalDateStringSuccess(isolate, "2021-11-09t062202,987654321",
-                                       2021, 11, 9, "");
-  VerifyParseTemporalDateStringSuccess(
-      isolate, "2021-11-09t06:22:03.987654321-1203", 2021, 11, 9, "");
-  VerifyParseTemporalDateStringSuccess(
-      isolate, "2021-11-09 062204.987654321-1203", 2021, 11, 9, "");
-
-  VerifyParseTemporalDateStringSuccess(isolate, "2021-11-09T12-12:03:04", 2021,
-                                       11, 9, "");
-  VerifyParseTemporalDateStringSuccess(isolate, "2021-11-09t1122-120304", 2021,
-                                       11, 9, "");
-  VerifyParseTemporalDateStringSuccess(
-      isolate, "2021-11-09 223344-12:03:04,987654321", 2021, 11, 9, "");
-  VerifyParseTemporalDateStringSuccess(
-      isolate, "2021-11-09T223344.987654321-120304.123456789", 2021, 11, 9, "");
-  VerifyParseTemporalDateStringSuccess(
-      isolate, "19670316T223344.987654321-120304.123456789", 1967, 3, 16, "");
-  // Date UTCDesignator
-  // Date UTCDesignator
-  VerifyParseTemporalDateStringSuccess(isolate, "2021-11-09z", 2021, 11, 9, "");
-  VerifyParseTemporalDateStringSuccess(isolate, "2021-11-09Z", 2021, 11, 9, "");
-  VerifyParseTemporalDateStringSuccess(isolate, "2021-11-09T11z", 2021, 11, 9,
-                                       "");
-  VerifyParseTemporalDateStringSuccess(isolate, "2021-11-09t12Z", 2021, 11, 9,
-                                       "");
-  VerifyParseTemporalDateStringSuccess(isolate, "2021-11-09 01:23Z", 2021, 11,
-                                       9, "");
-  VerifyParseTemporalDateStringSuccess(isolate, "2021-11-09 01:23:45Z", 2021,
-                                       11, 9, "");
-  VerifyParseTemporalDateStringSuccess(
-      isolate, "2021-11-09 01:23:45.678912345Z", 2021, 11, 9, "");
-  VerifyParseTemporalDateStringSuccess(
-      isolate, "2021-11-09 01:23:45,567891234Z", 2021, 11, 9, "");
-  VerifyParseTemporalDateStringSuccess(isolate, "2021-11-09 0123Z", 2021, 11, 9,
-                                       "");
-  VerifyParseTemporalDateStringSuccess(isolate, "2021-11-09 012345Z", 2021, 11,
-                                       9, "");
-  VerifyParseTemporalDateStringSuccess(isolate, "2021-11-09t012345.678912345Z",
-                                       2021, 11, 9, "");
-  VerifyParseTemporalDateStringSuccess(isolate, "2021-11-09 012345,891234567Z",
-                                       2021, 11, 9, "");
-  VerifyParseTemporalDateStringSuccess(isolate, "20211109T012345,891234567Z",
-                                       2021, 11, 9, "");
-  // Date TimeZoneNameRequired
-  // Date TimeZoneBracketedAnnotation
-  VerifyParseTemporalDateStringSuccess(isolate, "2021-11-09[Etc/GMT+01]", 2021,
-                                       11, 9, "");
-  VerifyParseTemporalDateStringSuccess(isolate, "2021-11-09[Etc/GMT-23]", 2021,
-                                       11, 9, "");
-  VerifyParseTemporalDateStringSuccess(isolate, "2021-11-09[Etc/GMT+23]", 2021,
-                                       11, 9, "");
-  VerifyParseTemporalDateStringSuccess(isolate, "2021-11-09[Etc/GMT-00]", 2021,
-                                       11, 9, "");
-  VerifyParseTemporalDateStringSuccess(isolate, "2021-11-09Z[Etc/GMT+01]", 2021,
-                                       11, 9, "");
-  VerifyParseTemporalDateStringSuccess(isolate, "2021-11-09z[Etc/GMT-23]", 2021,
-                                       11, 9, "");
-  VerifyParseTemporalDateStringSuccess(
-      isolate, "2021-11-09 23:45:56.891234567Z[Etc/GMT+23]", 2021, 11, 9, "");
-  // TimeZoneIANAName
-  VerifyParseTemporalDateStringSuccess(isolate, "2021-11-09[ABCDEFGHIJKLMN]",
-                                       2021, 11, 9, "");
-  VerifyParseTemporalDateStringSuccess(
-      isolate, "2021-11-09[ABCDEFGHIJKLMN/abcdefghijklmn/opeqrstuv]", 2021, 11,
-      9, "");
-  VerifyParseTemporalDateStringSuccess(
-      isolate, "2021-11-09[aBcDEfGHiJ.L_N/ABC...G_..KLMN]", 2021, 11, 9, "");
-  VerifyParseTemporalDateStringSuccess(
-      isolate, "2021-11-09[aBcDE-GHiJ.L_N/ABCbcdG-IJKLMN]", 2021, 11, 9, "");
-  VerifyParseTemporalDateStringSuccess(
-      isolate, "2021-11-09T12z[.BCDEFGHIJKLMN]", 2021, 11, 9, "");
-  VerifyParseTemporalDateStringSuccess(
-      isolate, "2021-11-09T23:45Z[ABCDEFGHIJKLMN/_bcde-ghij_lmn/.peqrstuv]",
-      2021, 11, 9, "");
-  VerifyParseTemporalDateStringSuccess(
-      isolate, "2021-11-09t234534.234+1234[aBcDEfGHiJ.L_N/ABC...G_..KLMN]",
-      2021, 11, 9, "");
-  VerifyParseTemporalDateStringSuccess(
-      isolate,
-      "2021-11-09 "
-      "123456.789123456-012345.789123456[aBcDEfGHiJ.L_N/ABCbcdGfIJKLMN]",
-      2021, 11, 9, "");
-  // TimeZoneUTCOffsetName
-  VerifyParseTemporalDateStringSuccess(isolate, "2021-11-09[+12]", 2021, 11, 9,
-                                       "");
-  VerifyParseTemporalDateStringSuccess(isolate, "2021-11-09[+12:34]", 2021, 11,
-                                       9, "");
-  VerifyParseTemporalDateStringSuccess(isolate, "2021-11-09[-12:34:56]", 2021,
-                                       11, 9, "");
-  VerifyParseTemporalDateStringSuccess(
-      isolate, "2021-11-09[+12:34:56,789123456]", 2021, 11, 9, "");
-  VerifyParseTemporalDateStringSuccess(
-      isolate, "2021-11-09[+12:34:56.789123456]", 2021, 11, 9, "");
-  VerifyParseTemporalDateStringSuccess(
-      isolate, u8"2021-11-09[\u221200:34:56.789123456]", 2021, 11, 9, "");
-
-  // Date TimeSpecSeparator TimeZone
-  // DateTime Calendaropt
-  VerifyParseTemporalDateStringSuccess(isolate, "2021-11-03[u-ca=abc]", 2021,
-                                       11, 03, "abc");
-  VerifyParseTemporalDateStringSuccess(isolate, "2021-11-03[u-ca=iso-8601]",
-                                       2021, 11, 03, "iso-8601");
-  VerifyParseTemporalDateStringSuccess(isolate, "2021-11-03[u-ca=123456-789]",
-                                       2021, 11, 03, "123456-789");
-  VerifyParseTemporalDateStringSuccess(isolate,
-                                       "2021-03-11[u-ca=abcdefgh-wxyzefg]",
-                                       2021, 3, 11, "abcdefgh-wxyzefg");
-  VerifyParseTemporalDateStringSuccess(
-      isolate, "2021-03-11[u-ca=abcdefgh-wxyzefg-ijklmnop]", 2021, 3, 11,
-      "abcdefgh-wxyzefg-ijklmnop");
-
-  VerifyParseTemporalDateStringSuccess(
-      isolate,
-      "2021-11-03 "
-      "123456.789123456-012345.789123456[aBcDEfGHiJ.L_N/"
-      "ABCbcdGfIJKLMN][u-ca=abc]",
-      2021, 11, 03, "abc");
-  VerifyParseTemporalDateStringSuccess(
-      isolate, "2021-03-11[+12:34:56,789123456][u-ca=abcdefgh-wxyzefg]", 2021,
-      3, 11, "abcdefgh-wxyzefg");
-  VerifyParseTemporalDateStringSuccess(
-      isolate,
-      u8"20210311[\u221200:34:56.789123456][u-ca=abcdefgh-wxyzefg-ijklmnop]",
-      2021, 3, 11, "abcdefgh-wxyzefg-ijklmnop");
 }
 
 #define VERIFY_PARSE_FAIL_ON_DATE(R)                            \
@@ -393,7 +163,7 @@ TEST(TemporalDateStringSuccess) {
     VERIFY_PARSE_FAIL(R, "-8210304");                           \
     VERIFY_PARSE_FAIL(R, "21-03-04");                           \
     VERIFY_PARSE_FAIL(R, "-31-03-04");                          \
-    VERIFY_PARSE_FAIL(R, u8"\u221231-03-04");                   \
+    VERIFY_PARSE_FAIL(R, "\u221231-03-04");                     \
     VERIFY_PARSE_FAIL(R, "-310304");                            \
     VERIFY_PARSE_FAIL(R, "1-03-04");                            \
     VERIFY_PARSE_FAIL(R, "-3-03-04");                           \
@@ -409,6 +179,10 @@ TEST(TemporalDateStringSuccess) {
     /* 7 digits year */                                         \
     VERIFY_PARSE_FAIL(R, "0002021-09-03");                      \
     VERIFY_PARSE_FAIL(R, "-0002021-09-03");                     \
+                                                                \
+    /* It is a Syntax Error if DateExtendedYear is "-000000" */ \
+    VERIFY_PARSE_FAIL(R, "-000000-09-03");                      \
+    VERIFY_PARSE_FAIL(R, "\u2212000000-09-03");                 \
                                                                 \
     /* single digit month */                                    \
     VERIFY_PARSE_FAIL(R, "1900-9-03");                          \
@@ -493,7 +267,7 @@ TEST(TemporalDateStringSuccess) {
     VERIFY_PARSE_FAIL(R, "1900-12-31[Etc/gMt+00]");             \
     VERIFY_PARSE_FAIL(R, "1900-12-31[Etc/gmT-00]");             \
     /* not ASCII sign */                                        \
-    VERIFY_PARSE_FAIL(R, u8"1900-12-31[Etc/GMT\u221200]");      \
+    VERIFY_PARSE_FAIL(R, "1900-12-31[Etc/GMT\u221200]");        \
     /* Out of range */                                          \
     VERIFY_PARSE_FAIL(R, "1900-12-31[Etc/GMT+24]");             \
     VERIFY_PARSE_FAIL(R, "1900-12-31[Etc/GMT-24]");             \
@@ -519,7 +293,7 @@ TEST(TemporalDateStringSuccess) {
     VERIFY_PARSE_FAIL(R, "1900-12-31[+01:60]");                 \
     VERIFY_PARSE_FAIL(R, "1900-12-31[-23:60]");                 \
     VERIFY_PARSE_FAIL(R, "1900-12-31[+2360]");                  \
-    VERIFY_PARSE_FAIL(R, u8"1900-12-31[\u22121260]");           \
+    VERIFY_PARSE_FAIL(R, "1900-12-31[\u22121260]");             \
     VERIFY_PARSE_FAIL(R, "1900-12-31[+01:23:]");                \
     VERIFY_PARSE_FAIL(R, "1900-12-31[-01234]");                 \
     VERIFY_PARSE_FAIL(R, "1900-12-31[+01:23:4]");               \
@@ -544,17 +318,6 @@ TEST(TemporalDateStringSuccess) {
     VERIFY_PARSE_FAIL(R, "1900-12-31[u-ca=abc-def-ghijklmno]"); \
   } while (false)
 
-TEST(TemporalDateStringIllegal) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  v8::HandleScope scope(CcTest::isolate());
-  VERIFY_PARSE_FAIL_ON_DATE(TemporalDateString);
-  VERIFY_PARSE_FAIL(TemporalDateString, "+20210304");
-  VERIFY_PARSE_FAIL(TemporalDateString, "-20210304");
-  VERIFY_PARSE_FAIL(TemporalDateString, u8"\u221220210304");
-  VERIFY_PARSE_FAIL(TemporalDateString, "210304");
-}
-
 void VerifyTemporalTimeStringTimeUndefined(Isolate* isolate, const char* str) {
   VerifyParseTemporalTimeStringSuccess(isolate, str, kUndefined, kUndefined,
                                        kUndefined, kUndefined, "");
@@ -577,19 +340,16 @@ TEST(TemporalTimeStringSuccess) {
   VerifyTemporalTimeStringTimeUndefined(isolate, "+0000011231");
   VerifyTemporalTimeStringTimeUndefined(isolate, "+0000000101");
   VerifyTemporalTimeStringTimeUndefined(isolate, "+0000000101");
-  VerifyTemporalTimeStringTimeUndefined(isolate, "-0000000101");
-  VerifyTemporalTimeStringTimeUndefined(isolate, u8"\u22120000000101");
-  VerifyTemporalTimeStringTimeUndefined(isolate, "-0000000101");
   VerifyTemporalTimeStringTimeUndefined(isolate, "+654321-11-03");
   VerifyTemporalTimeStringTimeUndefined(isolate, "+999999-12-31");
   VerifyTemporalTimeStringTimeUndefined(isolate, "-654321-11-03");
   VerifyTemporalTimeStringTimeUndefined(isolate, "-999999-12-31");
-  VerifyTemporalTimeStringTimeUndefined(isolate, u8"\u2212999999-12-31");
+  VerifyTemporalTimeStringTimeUndefined(isolate, "\u2212999999-12-31");
   VerifyTemporalTimeStringTimeUndefined(isolate, "+6543211103");
   VerifyTemporalTimeStringTimeUndefined(isolate, "+9999991231");
   VerifyTemporalTimeStringTimeUndefined(isolate, "-6543211103");
   VerifyTemporalTimeStringTimeUndefined(isolate, "-9999991231");
-  VerifyTemporalTimeStringTimeUndefined(isolate, u8"\u22129999991231");
+  VerifyTemporalTimeStringTimeUndefined(isolate, "\u22129999991231");
 
   // DateTime: Date TimeSpecSeparator_opt TimeZone_opt
   // Date TimeSpecSeparator
@@ -728,8 +488,8 @@ TEST(TemporalTimeStringSuccess) {
                                         "2021-11-09[+12:34:56,789123456]");
   VerifyTemporalTimeStringTimeUndefined(isolate,
                                         "2021-11-09[+12:34:56.789123456]");
-  VerifyTemporalTimeStringTimeUndefined(
-      isolate, u8"2021-11-09[\u221200:34:56.789123456]");
+  VerifyTemporalTimeStringTimeUndefined(isolate,
+                                        "2021-11-09[\u221200:34:56.789123456]");
 
   VerifyParseTemporalTimeStringSuccess(
       isolate, "2021-11-09 01:23:45.678912345Z", 1, 23, 45, 678912345, "");
@@ -765,13 +525,13 @@ TEST(TemporalTimeStringSuccess) {
       kUndefined, kUndefined, kUndefined, "abcdefgh-wxyzefg");
   VerifyParseTemporalTimeStringSuccess(
       isolate,
-      u8"20210311[\u221200:34:56.789123456][u-ca=abcdefgh-wxyzefg-ijklmnop]",
+      "20210311[\u221200:34:56.789123456][u-ca=abcdefgh-wxyzefg-ijklmnop]",
       kUndefined, kUndefined, kUndefined, kUndefined,
       "abcdefgh-wxyzefg-ijklmnop");
   VerifyParseTemporalTimeStringSuccess(
       isolate,
-      u8"20210311T22:11[\u221200:34:56.789123456][u-ca=abcdefgh-"
-      u8"wxyzefg-ijklmnop]",
+      "20210311T22:11[\u221200:34:56.789123456][u-ca=abcdefgh-"
+      "wxyzefg-ijklmnop]",
       22, 11, kUndefined, kUndefined, "abcdefgh-wxyzefg-ijklmnop");
   VerifyParseTemporalTimeStringSuccess(isolate, "2021-11-03[u-ca=abc]",
                                        kUndefined, kUndefined, kUndefined,
@@ -818,7 +578,6 @@ TEST(TemporalTimeStringIllegal) {
   VERIFY_PARSE_FAIL(TemporalTimeString, "1:11");
   // out of range Hour TimeMinute
   VERIFY_PARSE_FAIL(TemporalTimeString, "2400");
-  VERIFY_PARSE_FAIL(TemporalTimeString, "2360");
   VERIFY_PARSE_FAIL(TemporalTimeString, "24:00");
   VERIFY_PARSE_FAIL(TemporalTimeString, "23:60");
   // out of range Hour TimeMinute or TimeSecond
@@ -871,13 +630,6 @@ TEST(TemporalTimeStringIllegal) {
                             kUndefined, kUndefined, kUndefined, "");           \
     VerifyParse##R##Success(isolate, "+0000000101", 0, 1, 1, kUndefined,       \
                             kUndefined, kUndefined, kUndefined, "");           \
-    VerifyParse##R##Success(isolate, "-0000000101", 0, 1, 1, kUndefined,       \
-                            kUndefined, kUndefined, kUndefined, "");           \
-    VerifyParse##R##Success(isolate, u8"\u22120000000101", 0, 1, 1,            \
-                            kUndefined, kUndefined, kUndefined, kUndefined,    \
-                            "");                                               \
-    VerifyParse##R##Success(isolate, "-0000000101", 0, 1, 1, kUndefined,       \
-                            kUndefined, kUndefined, kUndefined, "");           \
     VerifyParse##R##Success(isolate, "+654321-11-03", 654321, 11, 3,           \
                             kUndefined, kUndefined, kUndefined, kUndefined,    \
                             "");                                               \
@@ -890,7 +642,7 @@ TEST(TemporalTimeStringIllegal) {
     VerifyParse##R##Success(isolate, "-999999-12-31", -999999, 12, 31,         \
                             kUndefined, kUndefined, kUndefined, kUndefined,    \
                             "");                                               \
-    VerifyParse##R##Success(isolate, u8"\u2212999999-12-31", -999999, 12, 31,  \
+    VerifyParse##R##Success(isolate, "\u2212999999-12-31", -999999, 12, 31,    \
                             kUndefined, kUndefined, kUndefined, kUndefined,    \
                             "");                                               \
     VerifyParse##R##Success(isolate, "+6543211103", 654321, 11, 3, kUndefined, \
@@ -904,7 +656,7 @@ TEST(TemporalTimeStringIllegal) {
     VerifyParse##R##Success(isolate, "-9999991231", -999999, 12, 31,           \
                             kUndefined, kUndefined, kUndefined, kUndefined,    \
                             "");                                               \
-    VerifyParse##R##Success(isolate, u8"\u22129999991231", -999999, 12, 31,    \
+    VerifyParse##R##Success(isolate, "\u22129999991231", -999999, 12, 31,      \
                             kUndefined, kUndefined, kUndefined, kUndefined,    \
                             "");                                               \
                                                                                \
@@ -1079,7 +831,7 @@ TEST(TemporalTimeStringIllegal) {
     VerifyParse##R##Success(isolate, "2021-11-09[+12:34:56.789123456]", 2021,  \
                             11, 9, kUndefined, kUndefined, kUndefined,         \
                             kUndefined, "");                                   \
-    VerifyParse##R##Success(isolate, u8"2021-11-09[\u221200:34:56.789123456]", \
+    VerifyParse##R##Success(isolate, "2021-11-09[\u221200:34:56.789123456]",   \
                             2021, 11, 9, kUndefined, kUndefined, kUndefined,   \
                             kUndefined, "");                                   \
                                                                                \
@@ -1113,8 +865,8 @@ TEST(TemporalTimeStringIllegal) {
         2021, 3, 11, kUndefined, kUndefined, kUndefined, kUndefined,           \
         "abcdefgh-wxyzefg");                                                   \
     VerifyParse##R##Success(isolate,                                           \
-                            u8"20210311[\u221200:34:56.789123456][u-ca="       \
-                            u8"abcdefgh-wxyzefg-ijklmnop]",                    \
+                            "20210311[\u221200:34:56.789123456][u-ca="         \
+                            "abcdefgh-wxyzefg-ijklmnop]",                      \
                             2021, 3, 11, kUndefined, kUndefined, kUndefined,   \
                             kUndefined, "abcdefgh-wxyzefg-ijklmnop");          \
     VerifyParse##R##Success(isolate, "2021-11-09 01:23:45.678912345Z", 2021,   \
@@ -1135,8 +887,11 @@ TEST(TemporalDateTimeStringIllegal) {
   VERIFY_PARSE_FAIL_ON_DATE(TemporalDateTimeString);
   VERIFY_PARSE_FAIL(TemporalDateTimeString, "+20210304");
   VERIFY_PARSE_FAIL(TemporalDateTimeString, "-20210304");
-  VERIFY_PARSE_FAIL(TemporalDateTimeString, u8"\u221220210304");
+  VERIFY_PARSE_FAIL(TemporalDateTimeString, "\u221220210304");
   VERIFY_PARSE_FAIL(TemporalDateTimeString, "210304");
+  // It is a Syntax Error if DateExtendedYear is "-000000"
+  VERIFY_PARSE_FAIL(TemporalDateTimeString, "-0000000304");
+  VERIFY_PARSE_FAIL(TemporalDateTimeString, "\u22120000000304");
 }
 
 TEST(TemporalYearMonthStringSuccess) {
@@ -1181,12 +936,6 @@ TEST(TemporalYearMonthStringSuccess) {
                                             "");
   VerifyParseTemporalYearMonthStringSuccess(isolate, "+0000000101", 0, 1, 1,
                                             "");
-  VerifyParseTemporalYearMonthStringSuccess(isolate, "-0000000101", 0, 1, 1,
-                                            "");
-  VerifyParseTemporalYearMonthStringSuccess(isolate, u8"\u22120000000101", 0, 1,
-                                            1, "");
-  VerifyParseTemporalYearMonthStringSuccess(isolate, "-0000000101", 0, 1, 1,
-                                            "");
   VerifyParseTemporalYearMonthStringSuccess(isolate, "+654321-11-03", 654321,
                                             11, 3, "");
   VerifyParseTemporalYearMonthStringSuccess(isolate, "+999999-12-31", 999999,
@@ -1195,7 +944,7 @@ TEST(TemporalYearMonthStringSuccess) {
                                             11, 3, "");
   VerifyParseTemporalYearMonthStringSuccess(isolate, "-999999-12-31", -999999,
                                             12, 31, "");
-  VerifyParseTemporalYearMonthStringSuccess(isolate, u8"\u2212999999-12-31",
+  VerifyParseTemporalYearMonthStringSuccess(isolate, "\u2212999999-12-31",
                                             -999999, 12, 31, "");
   VerifyParseTemporalYearMonthStringSuccess(isolate, "+6543211103", 654321, 11,
                                             3, "");
@@ -1205,7 +954,7 @@ TEST(TemporalYearMonthStringSuccess) {
                                             3, "");
   VerifyParseTemporalYearMonthStringSuccess(isolate, "-9999991231", -999999, 12,
                                             31, "");
-  VerifyParseTemporalYearMonthStringSuccess(isolate, u8"\u22129999991231",
+  VerifyParseTemporalYearMonthStringSuccess(isolate, "\u22129999991231",
                                             -999999, 12, 31, "");
 
   // DateTime: Date TimeSpecSeparator_opt TimeZone_opt
@@ -1357,7 +1106,7 @@ TEST(TemporalYearMonthStringSuccess) {
   VerifyParseTemporalYearMonthStringSuccess(
       isolate, "2021-11-09[+12:34:56.789123456]", 2021, 11, 9, "");
   VerifyParseTemporalYearMonthStringSuccess(
-      isolate, u8"2021-11-09[\u221200:34:56.789123456]", 2021, 11, 9, "");
+      isolate, "2021-11-09[\u221200:34:56.789123456]", 2021, 11, 9, "");
 }
 
 TEST(TemporalYearMonthStringIllegal) {
@@ -1368,47 +1117,52 @@ TEST(TemporalYearMonthStringIllegal) {
   // DateYear -opt DateMonth
   VERIFY_PARSE_FAIL(TemporalYearMonthString, "+2021-12");
   VERIFY_PARSE_FAIL(TemporalYearMonthString, "-2021-12");
-  VERIFY_PARSE_FAIL(TemporalYearMonthString, u8"2021\u221212");
-  VERIFY_PARSE_FAIL(TemporalYearMonthString, u8"\u22122021-12");
+  VERIFY_PARSE_FAIL(TemporalYearMonthString, "2021\u221212");
+  VERIFY_PARSE_FAIL(TemporalYearMonthString, "\u22122021-12");
   VERIFY_PARSE_FAIL(TemporalYearMonthString, "2021-00");
   VERIFY_PARSE_FAIL(TemporalYearMonthString, "2021-13");
   VERIFY_PARSE_FAIL(TemporalYearMonthString, "202100");
   VERIFY_PARSE_FAIL(TemporalYearMonthString, "202113");
   VERIFY_PARSE_FAIL(TemporalYearMonthString, "+98765-12");
   VERIFY_PARSE_FAIL(TemporalYearMonthString, "-12345-12");
-  VERIFY_PARSE_FAIL(TemporalYearMonthString, u8"\u221212345-12");
+  VERIFY_PARSE_FAIL(TemporalYearMonthString, "\u221212345-12");
   VERIFY_PARSE_FAIL(TemporalYearMonthString, "+9876-12");
   VERIFY_PARSE_FAIL(TemporalYearMonthString, "-1234-12");
-  VERIFY_PARSE_FAIL(TemporalYearMonthString, u8"\u22121234-12");
+  VERIFY_PARSE_FAIL(TemporalYearMonthString, "\u22121234-12");
   VERIFY_PARSE_FAIL(TemporalYearMonthString, "+987-12");
   VERIFY_PARSE_FAIL(TemporalYearMonthString, "-123-12");
-  VERIFY_PARSE_FAIL(TemporalYearMonthString, u8"\u2212123-12");
+  VERIFY_PARSE_FAIL(TemporalYearMonthString, "\u2212123-12");
   VERIFY_PARSE_FAIL(TemporalYearMonthString, "+98-12");
   VERIFY_PARSE_FAIL(TemporalYearMonthString, "-12-12");
-  VERIFY_PARSE_FAIL(TemporalYearMonthString, u8"\u221212-12");
+  VERIFY_PARSE_FAIL(TemporalYearMonthString, "\u221212-12");
   VERIFY_PARSE_FAIL(TemporalYearMonthString, "+9-12");
   VERIFY_PARSE_FAIL(TemporalYearMonthString, "-1-12");
-  VERIFY_PARSE_FAIL(TemporalYearMonthString, u8"\u22121-12");
+  VERIFY_PARSE_FAIL(TemporalYearMonthString, "\u22121-12");
   VERIFY_PARSE_FAIL(TemporalYearMonthString, "+9876512");
   VERIFY_PARSE_FAIL(TemporalYearMonthString, "-1234512");
-  VERIFY_PARSE_FAIL(TemporalYearMonthString, u8"\u22121234512");
+  VERIFY_PARSE_FAIL(TemporalYearMonthString, "\u22121234512");
   VERIFY_PARSE_FAIL(TemporalYearMonthString, "+987612");
   VERIFY_PARSE_FAIL(TemporalYearMonthString, "-123412");
-  VERIFY_PARSE_FAIL(TemporalYearMonthString, u8"\u2212123412");
+  VERIFY_PARSE_FAIL(TemporalYearMonthString, "\u2212123412");
   VERIFY_PARSE_FAIL(TemporalYearMonthString, "+98712");
-  VERIFY_PARSE_FAIL(TemporalYearMonthString, u8"\u221212312");
+  VERIFY_PARSE_FAIL(TemporalYearMonthString, "\u221212312");
   VERIFY_PARSE_FAIL(TemporalYearMonthString, "+9812");
   VERIFY_PARSE_FAIL(TemporalYearMonthString, "-1212");
-  VERIFY_PARSE_FAIL(TemporalYearMonthString, u8"\u22121212");
+  VERIFY_PARSE_FAIL(TemporalYearMonthString, "\u22121212");
   VERIFY_PARSE_FAIL(TemporalYearMonthString, "+912");
   VERIFY_PARSE_FAIL(TemporalYearMonthString, "-112");
-  VERIFY_PARSE_FAIL(TemporalYearMonthString, u8"\u2212112");
+  VERIFY_PARSE_FAIL(TemporalYearMonthString, "\u2212112");
   VERIFY_PARSE_FAIL(TemporalYearMonthString, "+12");
   VERIFY_PARSE_FAIL(TemporalYearMonthString, "-12");
-  VERIFY_PARSE_FAIL(TemporalYearMonthString, u8"\u221212");
+  VERIFY_PARSE_FAIL(TemporalYearMonthString, "\u221212");
   VERIFY_PARSE_FAIL(TemporalYearMonthString, "+1");
   VERIFY_PARSE_FAIL(TemporalYearMonthString, "-1");
-  VERIFY_PARSE_FAIL(TemporalYearMonthString, u8"\u22121");
+  VERIFY_PARSE_FAIL(TemporalYearMonthString, "\u22121");
+  // It is a Syntax Error if DateExtendedYear is "-000000"
+  VERIFY_PARSE_FAIL(TemporalYearMonthString, "-000000");
+  VERIFY_PARSE_FAIL(TemporalYearMonthString, "\u2212000000");
+  VERIFY_PARSE_FAIL(TemporalYearMonthString, "-00000001");
+  VERIFY_PARSE_FAIL(TemporalYearMonthString, "\u221200000001");
 }
 
 TEST(TemporalMonthDayStringSuccess) {
@@ -1448,10 +1202,6 @@ TEST(TemporalMonthDayStringSuccess) {
                                            "");
   VerifyParseTemporalMonthDayStringSuccess(isolate, "+0000000101", 0, 1, 1, "");
   VerifyParseTemporalMonthDayStringSuccess(isolate, "+0000000101", 0, 1, 1, "");
-  VerifyParseTemporalMonthDayStringSuccess(isolate, "-0000000101", 0, 1, 1, "");
-  VerifyParseTemporalMonthDayStringSuccess(isolate, u8"\u22120000000101", 0, 1,
-                                           1, "");
-  VerifyParseTemporalMonthDayStringSuccess(isolate, "-0000000101", 0, 1, 1, "");
   VerifyParseTemporalMonthDayStringSuccess(isolate, "+654321-11-03", 654321, 11,
                                            3, "");
   VerifyParseTemporalMonthDayStringSuccess(isolate, "+999999-12-31", 999999, 12,
@@ -1460,7 +1210,7 @@ TEST(TemporalMonthDayStringSuccess) {
                                            11, 3, "");
   VerifyParseTemporalMonthDayStringSuccess(isolate, "-999999-12-31", -999999,
                                            12, 31, "");
-  VerifyParseTemporalMonthDayStringSuccess(isolate, u8"\u2212999999-12-31",
+  VerifyParseTemporalMonthDayStringSuccess(isolate, "\u2212999999-12-31",
                                            -999999, 12, 31, "");
   VerifyParseTemporalMonthDayStringSuccess(isolate, "+6543211103", 654321, 11,
                                            3, "");
@@ -1470,8 +1220,8 @@ TEST(TemporalMonthDayStringSuccess) {
                                            3, "");
   VerifyParseTemporalMonthDayStringSuccess(isolate, "-9999991231", -999999, 12,
                                            31, "");
-  VerifyParseTemporalMonthDayStringSuccess(isolate, u8"\u22129999991231",
-                                           -999999, 12, 31, "");
+  VerifyParseTemporalMonthDayStringSuccess(isolate, "\u22129999991231", -999999,
+                                           12, 31, "");
 
   // DateTime: Date TimeSpecSeparator_opt TimeZone_opt
   // Date TimeSpecSeparator
@@ -1622,7 +1372,7 @@ TEST(TemporalMonthDayStringSuccess) {
   VerifyParseTemporalMonthDayStringSuccess(
       isolate, "2021-11-09[+12:34:56.789123456]", 2021, 11, 9, "");
   VerifyParseTemporalMonthDayStringSuccess(
-      isolate, u8"2021-11-09[\u221200:34:56.789123456]", 2021, 11, 9, "");
+      isolate, "2021-11-09[\u221200:34:56.789123456]", 2021, 11, 9, "");
 }
 
 TEST(TemporalMonthDayStringIllegal) {
@@ -1743,15 +1493,15 @@ TEST(TemporalInstantStringIllegal) {
   // Wrong TimeZoneUTCOffsetHour
   VERIFY_PARSE_FAIL(TemporalInstantString, "20211109+24");
   VERIFY_PARSE_FAIL(TemporalInstantString, "20211109-24");
-  VERIFY_PARSE_FAIL(TemporalInstantString, u8"20211109\u221224");
+  VERIFY_PARSE_FAIL(TemporalInstantString, "20211109\u221224");
   VERIFY_PARSE_FAIL(TemporalInstantString, "20211109+ab");
   VERIFY_PARSE_FAIL(TemporalInstantString, "20211109-2a");
-  VERIFY_PARSE_FAIL(TemporalInstantString, u8"20211109\u22122Z");
+  VERIFY_PARSE_FAIL(TemporalInstantString, "20211109\u22122Z");
   // Single digit is not TimeZoneUTCOffsetHour
   VERIFY_PARSE_FAIL(TemporalInstantString, "20211109+0");
   VERIFY_PARSE_FAIL(TemporalInstantString, "20211109+2");
   VERIFY_PARSE_FAIL(TemporalInstantString, "20211109-1");
-  VERIFY_PARSE_FAIL(TemporalInstantString, u8"20211109\u22123");
+  VERIFY_PARSE_FAIL(TemporalInstantString, "20211109\u22123");
 
   // Extra
   VERIFY_PARSE_FAIL(TemporalInstantString, "20211109+23 ");
@@ -1764,24 +1514,24 @@ TEST(TemporalInstantStringIllegal) {
   VERIFY_PARSE_FAIL(TemporalInstantString, "20211109+01:0");
   VERIFY_PARSE_FAIL(TemporalInstantString, "20211109+21:5");
   VERIFY_PARSE_FAIL(TemporalInstantString, "20211109-20:4");
-  VERIFY_PARSE_FAIL(TemporalInstantString, u8"20211109\u221219:3");
+  VERIFY_PARSE_FAIL(TemporalInstantString, "20211109\u221219:3");
   // TimeZoneUTCOffsetMinute out of range
   VERIFY_PARSE_FAIL(TemporalInstantString, "20211109+01:60");
   VERIFY_PARSE_FAIL(TemporalInstantString, "20211109+21:5a");
   VERIFY_PARSE_FAIL(TemporalInstantString, "20211109-20:4f");
-  VERIFY_PARSE_FAIL(TemporalInstantString, u8"20211109\u221219:a0");
+  VERIFY_PARSE_FAIL(TemporalInstantString, "20211109\u221219:a0");
 
   // Wrong TimeZoneUTCOffsetSign TimeZoneUTCOffsetHour TimeZoneUTCOffsetMinute
   // single digit TimeZoneUTCOffsetMinute
   VERIFY_PARSE_FAIL(TemporalInstantString, "20211109+010");
   VERIFY_PARSE_FAIL(TemporalInstantString, "20211109+215");
   VERIFY_PARSE_FAIL(TemporalInstantString, "20211109-204");
-  VERIFY_PARSE_FAIL(TemporalInstantString, u8"20211109\u2212193");
+  VERIFY_PARSE_FAIL(TemporalInstantString, "20211109\u2212193");
   // TimeZoneUTCOffsetMinute out of range
   VERIFY_PARSE_FAIL(TemporalInstantString, "20211109+0160");
   VERIFY_PARSE_FAIL(TemporalInstantString, "20211109+215a");
   VERIFY_PARSE_FAIL(TemporalInstantString, "20211109-204f");
-  VERIFY_PARSE_FAIL(TemporalInstantString, u8"20211109\u221219a0");
+  VERIFY_PARSE_FAIL(TemporalInstantString, "20211109\u221219a0");
 
   // TimeZoneUTCOffsetSign TimeZoneUTCOffsetHour : TimeZoneUTCOffsetMinute :
   // TimeZoneUTCOffsetSecond TimeZoneUTCOffsetFractionopt with : here but not
@@ -1807,6 +1557,10 @@ TEST(TemporalInstantStringIllegal) {
   // fraction too long
   VERIFY_PARSE_FAIL(TemporalInstantString, "20211109-073401.0000000000");
   VERIFY_PARSE_FAIL(TemporalInstantString, "20211109+073401,9876543219");
+  // It is a Syntax Error if DateExtendedYear is "-000000"
+  VERIFY_PARSE_FAIL(TemporalInstantString, "-0000001109+073401,9876543219");
+  VERIFY_PARSE_FAIL(TemporalInstantString,
+                    "\u22120000001109+073401,9876543219");
 }
 
 #define IMPL_ZONED_DATE_TIME_STRING_SUCCESS(R)                                \
@@ -1840,7 +1594,7 @@ TEST(TemporalZonedDateTimeStringSuccess) {
     VERIFY_PARSE_FAIL_ON_DATE(R);                                          \
     VERIFY_PARSE_FAIL(R, "+20210304");                                     \
     VERIFY_PARSE_FAIL(R, "-20210304");                                     \
-    VERIFY_PARSE_FAIL(R, u8"\u221220210304");                              \
+    VERIFY_PARSE_FAIL(R, "\u221220210304");                                \
     VERIFY_PARSE_FAIL(R, "210304");                                        \
     VERIFY_PARSE_FAIL(R, "2021-03-04");                                    \
     VERIFY_PARSE_FAIL(R, "2021-03-04T23:59:20.1234");                      \
@@ -1855,7 +1609,7 @@ TEST(TemporalZonedDateTimeStringSuccess) {
     VERIFY_PARSE_FAIL(R, "2021-03-04T23:59:20.1234[ETC/GMT+00]");          \
     VERIFY_PARSE_FAIL(R, "2021-03-04T23:59:20.1234z[Etc/GMT+24]");         \
     VERIFY_PARSE_FAIL(R, "2021-03-04[Etc/GMT+00:00]");                     \
-    VERIFY_PARSE_FAIL(R, u8"2021-03-04[Etc/GMT\u221200]");                 \
+    VERIFY_PARSE_FAIL(R, "2021-03-04[Etc/GMT\u221200]");                   \
     VERIFY_PARSE_FAIL(R, "2021-03-04T23:59:20.1234[.]");                   \
     VERIFY_PARSE_FAIL(R, "2021-03-04T23:59:20.1234z[..]");                 \
     VERIFY_PARSE_FAIL(R, "2021-03-04T23:59:20.1234[ABCD/.]");              \
@@ -1873,6 +1627,8 @@ TEST(TemporalZonedDateTimeStringSuccess) {
     VERIFY_PARSE_FAIL(R, "2021-03-04t23:59:20.1234[+123456.9876543210]");  \
     VERIFY_PARSE_FAIL(R, "2021-03-04t23:59:20.1234[+123456.]");            \
     VERIFY_PARSE_FAIL(R, "2021-03-04t23:59:20.1234[+123456,]");            \
+    VERIFY_PARSE_FAIL(R, "-000000-03-04t23:59:20.1234[+123456,]");         \
+    VERIFY_PARSE_FAIL(R, "\u2212000000-03-04t23:59:20.1234[+123456,]");    \
   } while (false)
 
 TEST(TemporalZonedDateTimeStringIllegal) {
@@ -1880,25 +1636,6 @@ TEST(TemporalZonedDateTimeStringIllegal) {
   Isolate* isolate = CcTest::i_isolate();
   v8::HandleScope scope(CcTest::isolate());
   VERIFY_PARSE_FAIL_ON_ZONED_DATE_TIME(TemporalZonedDateTimeString);
-}
-
-TEST(TemporalRelativeToStringSuccess) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  v8::HandleScope scope(CcTest::isolate());
-  IMPL_DATE_TIME_STRING_SUCCESS(TemporalRelativeToString);
-  IMPL_ZONED_DATE_TIME_STRING_SUCCESS(TemporalRelativeToString);
-}
-
-TEST(TemporalRelativeToStringIllegal) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  v8::HandleScope scope(CcTest::isolate());
-  VERIFY_PARSE_FAIL_ON_DATE(TemporalRelativeToString);
-  VERIFY_PARSE_FAIL(TemporalRelativeToString, "+20210304");
-  VERIFY_PARSE_FAIL(TemporalRelativeToString, "-20210304");
-  VERIFY_PARSE_FAIL(TemporalRelativeToString, u8"\u221220210304");
-  VERIFY_PARSE_FAIL(TemporalRelativeToString, "210304");
 }
 
 TEST(TemporalCalendarStringSuccess) {
@@ -1943,6 +1680,9 @@ TEST(TemporalCalendarStringIllegal) {
   VERIFY_PARSE_FAIL(TemporalCalendarString, "20210304[u-ca=ab]");
   VERIFY_PARSE_FAIL(TemporalCalendarString, "20210304[u-ca=abcdef-ab]");
   VERIFY_PARSE_FAIL(TemporalCalendarString, "20210304[u-ca=abcdefghijkl]");
+  // It is a Syntax Error if DateExtendedYear is "-000000"
+  VERIFY_PARSE_FAIL(TemporalCalendarString, "-0000000304[u-ca=abcdef-ab]");
+  VERIFY_PARSE_FAIL(TemporalCalendarString, "\u22120000000304[u-ca=abcdef-ab]");
 }
 
 void CheckDuration(const ParsedISO8601Duration& actual, int64_t sign,
@@ -1970,10 +1710,10 @@ void VerifyParseDurationSuccess(Isolate* isolate, const char* str, int64_t sign,
                                 int64_t minutes_fraction, int64_t whole_seconds,
                                 int64_t seconds_fraction) {
   Handle<String> input = CcTest::MakeString(str);
-  CheckDuration(
-      TemporalParser::ParseTemporalDurationString(isolate, input).ToChecked(),
-      sign, years, months, weeks, days, whole_hours, hours_fraction,
-      whole_minutes, minutes_fraction, whole_seconds, seconds_fraction);
+  CheckDuration(*TemporalParser::ParseTemporalDurationString(isolate, input),
+                sign, years, months, weeks, days, whole_hours, hours_fraction,
+                whole_minutes, minutes_fraction, whole_seconds,
+                seconds_fraction);
 }
 
 void VerifyParseDurationSuccess(Isolate* isolate, const char* str,
@@ -1988,7 +1728,7 @@ void VerifyParseDurationSuccess(Isolate* isolate, const char* str,
 void VerifyParseDurationWithPositiveSign(Isolate* isolate, const char* str) {
   Handle<String> input = CcTest::MakeString(str);
   ParsedISO8601Duration expected =
-      TemporalParser::ParseTemporalDurationString(isolate, input).ToChecked();
+      *TemporalParser::ParseTemporalDurationString(isolate, input);
   std::string with_sign("+");
   with_sign += str;
   VerifyParseDurationSuccess(isolate, with_sign.c_str(), expected);
@@ -1999,8 +1739,8 @@ void VerifyParseDurationWithMinusSign(Isolate* isolate, const char* str) {
   with_sign += str;
   Handle<String> input = CcTest::MakeString(with_sign.c_str());
   ParsedISO8601Duration expected =
-      TemporalParser::ParseTemporalDurationString(isolate, input).ToChecked();
-  with_sign = u8"\u2212";
+      *TemporalParser::ParseTemporalDurationString(isolate, input);
+  with_sign = "\u2212";
   with_sign += str;
   VerifyParseDurationSuccess(isolate, with_sign.c_str(), expected);
 }
@@ -2012,7 +1752,7 @@ char asciitolower(char in) {
 void VerifyParseDurationWithLowerCase(Isolate* isolate, const char* str) {
   Handle<String> input = CcTest::MakeString(str);
   ParsedISO8601Duration expected =
-      TemporalParser::ParseTemporalDurationString(isolate, input).ToChecked();
+      *TemporalParser::ParseTemporalDurationString(isolate, input);
   std::string lower(str);
   std::transform(lower.begin(), lower.end(), lower.begin(), asciitolower);
   VerifyParseDurationSuccess(isolate, lower.c_str(), expected);
@@ -2024,9 +1764,11 @@ void VerifyParseDurationWithComma(Isolate* isolate, const char* str) {
   std::transform(period.begin(), period.end(), period.begin(), commatoperiod);
   Handle<String> input = CcTest::MakeString(str);
   ParsedISO8601Duration expected =
-      TemporalParser::ParseTemporalDurationString(isolate, input).ToChecked();
+      *TemporalParser::ParseTemporalDurationString(isolate, input);
   VerifyParseDurationSuccess(isolate, str, expected);
 }
+
+constexpr int64_t empty = ParsedISO8601Duration::kEmpty;
 
 // Test basic cases.
 TEST(TemporalDurationStringBasic) {
@@ -2034,29 +1776,37 @@ TEST(TemporalDurationStringBasic) {
   Isolate* isolate = CcTest::i_isolate();
   v8::HandleScope scope(CcTest::isolate());
 
-  VerifyParseDurationSuccess(isolate, "PT0S", 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-  VerifyParseDurationSuccess(isolate, "-PT0S", -1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                             0);
+  VerifyParseDurationSuccess(isolate, "PT0S", 1, empty, empty, empty, empty,
+                             empty, empty, empty, empty, 0, empty);
+  VerifyParseDurationSuccess(isolate, "-PT0S", -1, empty, empty, empty, empty,
+                             empty, empty, empty, empty, 0, empty);
 
-  VerifyParseDurationSuccess(isolate, "P1Y", 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-  VerifyParseDurationSuccess(isolate, "P2M", 1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0);
-  VerifyParseDurationSuccess(isolate, "P3W", 1, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0);
-  VerifyParseDurationSuccess(isolate, "P4D", 1, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0);
-  VerifyParseDurationSuccess(isolate, "PT5H", 1, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0);
-  VerifyParseDurationSuccess(isolate, "PT1.987654321H", 1, 0, 0, 0, 0, 1,
-                             987654321, 0, 0, 0, 0);
-  VerifyParseDurationSuccess(isolate, "PT2.9H", 1, 0, 0, 0, 0, 2, 900000000, 0,
-                             0, 0, 0);
-  VerifyParseDurationSuccess(isolate, "PT6M", 1, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0);
-  VerifyParseDurationSuccess(isolate, "PT2.234567891M", 1, 0, 0, 0, 0, 0, 0, 2,
-                             234567891, 0, 0);
-  VerifyParseDurationSuccess(isolate, "PT3.23M", 1, 0, 0, 0, 0, 0, 0, 3,
-                             230000000, 0, 0);
-  VerifyParseDurationSuccess(isolate, "PT7S", 1, 0, 0, 0, 0, 0, 0, 0, 0, 7, 0);
-  VerifyParseDurationSuccess(isolate, "PT3.345678912S", 1, 0, 0, 0, 0, 0, 0, 0,
-                             0, 3, 345678912);
-  VerifyParseDurationSuccess(isolate, "PT4.345S", 1, 0, 0, 0, 0, 0, 0, 0, 0, 4,
-                             345000000);
+  VerifyParseDurationSuccess(isolate, "P1Y", 1, 1, empty, empty, empty, empty,
+                             empty, empty, empty, empty, empty);
+  VerifyParseDurationSuccess(isolate, "P2M", 1, empty, 2, empty, empty, empty,
+                             empty, empty, empty, empty, empty);
+  VerifyParseDurationSuccess(isolate, "P3W", 1, empty, empty, 3, empty, empty,
+                             empty, empty, empty, empty, empty);
+  VerifyParseDurationSuccess(isolate, "P4D", 1, empty, empty, empty, 4, empty,
+                             empty, empty, empty, empty, empty);
+  VerifyParseDurationSuccess(isolate, "PT5H", 1, empty, empty, empty, empty, 5,
+                             empty, empty, empty, empty, empty);
+  VerifyParseDurationSuccess(isolate, "PT1.987654321H", 1, empty, empty, empty,
+                             empty, 1, 987654321, empty, empty, empty, empty);
+  VerifyParseDurationSuccess(isolate, "PT2.9H", 1, empty, empty, empty, empty,
+                             2, 900000000, empty, empty, empty, empty);
+  VerifyParseDurationSuccess(isolate, "PT6M", 1, empty, empty, empty, empty,
+                             empty, empty, 6, empty, empty, empty);
+  VerifyParseDurationSuccess(isolate, "PT2.234567891M", 1, empty, empty, empty,
+                             empty, empty, empty, 2, 234567891, empty, empty);
+  VerifyParseDurationSuccess(isolate, "PT3.23M", 1, empty, empty, empty, empty,
+                             empty, empty, 3, 230000000, empty, empty);
+  VerifyParseDurationSuccess(isolate, "PT7S", 1, empty, empty, empty, empty,
+                             empty, empty, empty, empty, 7, empty);
+  VerifyParseDurationSuccess(isolate, "PT3.345678912S", 1, empty, empty, empty,
+                             empty, empty, empty, empty, empty, 3, 345678912);
+  VerifyParseDurationSuccess(isolate, "PT4.345S", 1, empty, empty, empty, empty,
+                             empty, empty, empty, empty, 4, 345000000);
 
   VerifyParseDurationSuccess(isolate, "P1Y2M3W4DT5.6H7.8M9.1S", 1, 1, 2, 3, 4,
                              5, 600000000, 7, 800000000, 9, 100000000);
@@ -2074,26 +1824,30 @@ TEST(TemporalDurationStringNegative) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   v8::HandleScope scope(CcTest::isolate());
-  VerifyParseDurationSuccess(isolate, "-P1Y", -1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-  VerifyParseDurationSuccess(isolate, "-P2M", -1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0);
-  VerifyParseDurationSuccess(isolate, "-P3W", -1, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0);
-  VerifyParseDurationSuccess(isolate, "-P4D", -1, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0);
-  VerifyParseDurationSuccess(isolate, "-PT5H", -1, 0, 0, 0, 0, 5, 0, 0, 0, 0,
-                             0);
-  VerifyParseDurationSuccess(isolate, "-PT4.123H", -1, 0, 0, 0, 0, 4, 123000000,
-                             0, 0, 0, 0);
-  VerifyParseDurationSuccess(isolate, "-PT3.123456H", -1, 0, 0, 0, 0, 3,
-                             123456000, 0, 0, 0, 0);
-  VerifyParseDurationSuccess(isolate, "-PT6M", -1, 0, 0, 0, 0, 0, 0, 6, 0, 0,
-                             0);
-  VerifyParseDurationSuccess(isolate, "-PT5.2M", -1, 0, 0, 0, 0, 0, 0, 5,
-                             200000000, 0, 0);
-  VerifyParseDurationSuccess(isolate, "-PT4.3456M", -1, 0, 0, 0, 0, 0, 0, 4,
-                             345600000, 0, 0);
-  VerifyParseDurationSuccess(isolate, "-PT7S", -1, 0, 0, 0, 0, 0, 0, 0, 0, 7,
-                             0);
-  VerifyParseDurationSuccess(isolate, "-PT6.987S", -1, 0, 0, 0, 0, 0, 0, 0, 0,
-                             6, 987000000);
+  VerifyParseDurationSuccess(isolate, "-P1Y", -1, 1, empty, empty, empty, empty,
+                             empty, empty, empty, empty, empty);
+  VerifyParseDurationSuccess(isolate, "-P2M", -1, empty, 2, empty, empty, empty,
+                             empty, empty, empty, empty, empty);
+  VerifyParseDurationSuccess(isolate, "-P3W", -1, empty, empty, 3, empty, empty,
+                             empty, empty, empty, empty, empty);
+  VerifyParseDurationSuccess(isolate, "-P4D", -1, empty, empty, empty, 4, empty,
+                             empty, empty, empty, empty, empty);
+  VerifyParseDurationSuccess(isolate, "-PT5H", -1, empty, empty, empty, empty,
+                             5, empty, empty, empty, empty, empty);
+  VerifyParseDurationSuccess(isolate, "-PT4.123H", -1, empty, empty, empty,
+                             empty, 4, 123000000, empty, empty, empty, empty);
+  VerifyParseDurationSuccess(isolate, "-PT3.123456H", -1, empty, empty, empty,
+                             empty, 3, 123456000, empty, empty, empty, empty);
+  VerifyParseDurationSuccess(isolate, "-PT6M", -1, empty, empty, empty, empty,
+                             empty, empty, 6, empty, empty, empty);
+  VerifyParseDurationSuccess(isolate, "-PT5.2M", -1, empty, empty, empty, empty,
+                             empty, empty, 5, 200000000, empty, empty);
+  VerifyParseDurationSuccess(isolate, "-PT4.3456M", -1, empty, empty, empty,
+                             empty, empty, empty, 4, 345600000, empty, empty);
+  VerifyParseDurationSuccess(isolate, "-PT7S", -1, empty, empty, empty, empty,
+                             empty, empty, empty, empty, 7, empty);
+  VerifyParseDurationSuccess(isolate, "-PT6.987S", -1, empty, empty, empty,
+                             empty, empty, empty, empty, empty, 6, 987000000);
 }
 
 // Test duration with + sign parsed the same as without + sign.
@@ -2174,50 +1928,68 @@ TEST(TemporalDurationStringLongDigits) {
   v8::HandleScope scope(CcTest::isolate());
 
   VerifyParseDurationSuccess(isolate, "P8999999999999999999Y", 1,
-                             8999999999999999999, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-  VerifyParseDurationSuccess(isolate, "P8999999999999999998M", 1, 0,
-                             8999999999999999998, 0, 0, 0, 0, 0, 0, 0, 0);
-  VerifyParseDurationSuccess(isolate, "P8999999999999999997W", 1, 0, 0,
-                             8999999999999999997, 0, 0, 0, 0, 0, 0, 0);
-  VerifyParseDurationSuccess(isolate, "P8999999999999999996D", 1, 0, 0, 0,
-                             8999999999999999996, 0, 0, 0, 0, 0, 0);
-  VerifyParseDurationSuccess(isolate, "PT8999999999999999995H", 1, 0, 0, 0, 0,
-                             8999999999999999995, 0, 0, 0, 0, 0);
-  VerifyParseDurationSuccess(isolate, "PT8999999999999999994M", 1, 0, 0, 0, 0,
-                             0, 0, 8999999999999999994, 0, 0, 0);
-  VerifyParseDurationSuccess(isolate, "PT8999999999999999993S", 1, 0, 0, 0, 0,
-                             0, 0, 0, 0, 8999999999999999993, 0);
+                             8999999999999999999, empty, empty, empty, empty,
+                             empty, empty, empty, empty, empty);
+  VerifyParseDurationSuccess(isolate, "P8999999999999999998M", 1, empty,
+                             8999999999999999998, empty, empty, empty, empty,
+                             empty, empty, empty, empty);
+  VerifyParseDurationSuccess(isolate, "P8999999999999999997W", 1, empty, empty,
+                             8999999999999999997, empty, empty, empty, empty,
+                             empty, empty, empty);
+  VerifyParseDurationSuccess(isolate, "P8999999999999999996D", 1, empty, empty,
+                             empty, 8999999999999999996, empty, empty, empty,
+                             empty, empty, empty);
+  VerifyParseDurationSuccess(isolate, "PT8999999999999999995H", 1, empty, empty,
+                             empty, empty, 8999999999999999995, empty, empty,
+                             empty, empty, empty);
+  VerifyParseDurationSuccess(isolate, "PT8999999999999999994M", 1, empty, empty,
+                             empty, empty, empty, empty, 8999999999999999994,
+                             empty, empty, empty);
+  VerifyParseDurationSuccess(isolate, "PT8999999999999999993S", 1, empty, empty,
+                             empty, empty, empty, empty, empty, empty,
+                             8999999999999999993, empty);
 
-  VerifyParseDurationSuccess(isolate, "PT0.999999999H", 1, 0, 0, 0, 0, 0,
-                             999999999, 0, 0, 0, 0);
-  VerifyParseDurationSuccess(isolate, "PT0.999999999M", 1, 0, 0, 0, 0, 0, 0, 0,
-                             999999999, 0, 0);
-  VerifyParseDurationSuccess(isolate, "PT0.999999999S", 1, 0, 0, 0, 0, 0, 0, 0,
-                             0, 0, 999999999);
+  VerifyParseDurationSuccess(isolate, "PT0.999999999H", 1, empty, empty, empty,
+                             empty, 0, 999999999, empty, empty, empty, empty);
+  VerifyParseDurationSuccess(isolate, "PT0.999999999M", 1, empty, empty, empty,
+                             empty, empty, empty, 0, 999999999, empty, empty);
+  VerifyParseDurationSuccess(isolate, "PT0.999999999S", 1, empty, empty, empty,
+                             empty, empty, empty, empty, empty, 0, 999999999);
 
   VerifyParseDurationSuccess(isolate, "-P8999999999999999999Y", -1,
-                             8999999999999999999, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-  VerifyParseDurationSuccess(isolate, "-P8999999999999999998M", -1, 0,
-                             8999999999999999998, 0, 0, 0, 0, 0, 0, 0, 0);
-  VerifyParseDurationSuccess(isolate, "-P8999999999999999997W", -1, 0, 0,
-                             8999999999999999997, 0, 0, 0, 0, 0, 0, 0);
-  VerifyParseDurationSuccess(isolate, "-P8999999999999999996D", -1, 0, 0, 0,
-                             8999999999999999996, 0, 0, 0, 0, 0, 0);
-  VerifyParseDurationSuccess(isolate, "-PT8999999999999999995H", -1, 0, 0, 0, 0,
-                             8999999999999999995, 0, 0, 0, 0, 0);
-  VerifyParseDurationSuccess(isolate, "-PT8999999999999999995H", -1, 0, 0, 0, 0,
-                             8999999999999999995, 0, 0, 0, 0, 0);
-  VerifyParseDurationSuccess(isolate, "-PT8999999999999999994M", -1, 0, 0, 0, 0,
-                             0, 0, 8999999999999999994, 0, 0, 0);
-  VerifyParseDurationSuccess(isolate, "-PT8999999999999999993S", -1, 0, 0, 0, 0,
-                             0, 0, 0, 0, 8999999999999999993, 0);
+                             8999999999999999999, empty, empty, empty, empty,
+                             empty, empty, empty, empty, empty);
+  VerifyParseDurationSuccess(isolate, "-P8999999999999999998M", -1, empty,
+                             8999999999999999998, empty, empty, empty, empty,
+                             empty, empty, empty, empty);
+  VerifyParseDurationSuccess(isolate, "-P8999999999999999997W", -1, empty,
+                             empty, 8999999999999999997, empty, empty, empty,
+                             empty, empty, empty, empty);
+  VerifyParseDurationSuccess(isolate, "-P8999999999999999996D", -1, empty,
+                             empty, empty, 8999999999999999996, empty, empty,
+                             empty, empty, empty, empty);
+  VerifyParseDurationSuccess(isolate, "-PT8999999999999999995H", -1, empty,
+                             empty, empty, empty, 8999999999999999995, empty,
+                             empty, empty, empty, empty);
+  VerifyParseDurationSuccess(isolate, "-PT8999999999999999995H", -1, empty,
+                             empty, empty, empty, 8999999999999999995, empty,
+                             empty, empty, empty, empty);
+  VerifyParseDurationSuccess(isolate, "-PT8999999999999999994M", -1, empty,
+                             empty, empty, empty, empty, empty,
+                             8999999999999999994, empty, empty, empty);
+  VerifyParseDurationSuccess(isolate, "-PT8999999999999999993S", -1, empty,
+                             empty, empty, empty, empty, empty, empty, empty,
+                             8999999999999999993, empty);
 
-  VerifyParseDurationSuccess(isolate, "-PT0.999999999H", -1, 0, 0, 0, 0, 0,
-                             999999999, 0, 0, 0, 0);
-  VerifyParseDurationSuccess(isolate, "-PT0.999999999M", -1, 0, 0, 0, 0, 0, 0,
-                             0, 999999999, 0, 0);
-  VerifyParseDurationSuccess(isolate, "-PT0.999999999S", -1, 0, 0, 0, 0, 0, 0,
-                             0, 0, 0, 999999999);
+  VerifyParseDurationSuccess(isolate, "-PT0.999999999H", -1, empty, empty,
+                             empty, empty, 0, 999999999, empty, empty, empty,
+                             empty);
+  VerifyParseDurationSuccess(isolate, "-PT0.999999999M", -1, empty, empty,
+                             empty, empty, empty, empty, 0, 999999999, empty,
+                             empty);
+  VerifyParseDurationSuccess(isolate, "-PT0.999999999S", -1, empty, empty,
+                             empty, empty, empty, empty, empty, empty, 0,
+                             999999999);
 }
 
 TEST(TemporalDurationStringNotSatisfy) {
@@ -2245,7 +2017,7 @@ TEST(TemporalDurationStringNotSatisfy) {
   // Sign after P
   VERIFY_PARSE_FAIL(TemporalDurationString, "P+1Y");
   VERIFY_PARSE_FAIL(TemporalDurationString, "P-2M");
-  VERIFY_PARSE_FAIL(TemporalDurationString, u8"P\u22123W");
+  VERIFY_PARSE_FAIL(TemporalDurationString, "P\u22123W");
   VERIFY_PARSE_FAIL(TemporalDurationString, "P+4D");
   VERIFY_PARSE_FAIL(TemporalDurationString, "PT-4H");
   VERIFY_PARSE_FAIL(TemporalDurationString, "PT+5M");
@@ -2291,8 +2063,8 @@ void VerifyParseTimeZoneNumericUTCOffsetSuccess(
     int32_t tzuo_minute, int32_t tzuo_second, int32_t tzuo_nanosecond) {
   Handle<String> input = CcTest::MakeString(str);
   CheckTimeZoneNumericUTCOffset(
-      TemporalParser::ParseTimeZoneNumericUTCOffset(isolate, input).ToChecked(),
-      tzuo_sign, tzuo_hour, tzuo_minute, tzuo_second, tzuo_nanosecond);
+      *TemporalParser::ParseTimeZoneNumericUTCOffset(isolate, input), tzuo_sign,
+      tzuo_hour, tzuo_minute, tzuo_second, tzuo_nanosecond);
 }
 
 TEST(TimeZoneNumericUTCOffsetBasic) {
@@ -2308,7 +2080,7 @@ TEST(TimeZoneNumericUTCOffsetBasic) {
   VerifyParseTimeZoneNumericUTCOffsetSuccess(isolate, "-23", -1, 23, kUndefined,
                                              kUndefined, kUndefined);
   VerifyParseTimeZoneNumericUTCOffsetSuccess(
-      isolate, u8"\u221223", -1, 23, kUndefined, kUndefined, kUndefined);
+      isolate, "\u221223", -1, 23, kUndefined, kUndefined, kUndefined);
 
   // TimeZoneUTCOffsetSign TimeZoneUTCOffsetHour : TimeZoneUTCOffsetMinute
   VerifyParseTimeZoneNumericUTCOffsetSuccess(isolate, "+01:00", 1, 1, 0,
@@ -2317,8 +2089,8 @@ TEST(TimeZoneNumericUTCOffsetBasic) {
                                              kUndefined, kUndefined);
   VerifyParseTimeZoneNumericUTCOffsetSuccess(isolate, "-20:48", -1, 20, 48,
                                              kUndefined, kUndefined);
-  VerifyParseTimeZoneNumericUTCOffsetSuccess(isolate, u8"\u221219:33", -1, 19,
-                                             33, kUndefined, kUndefined);
+  VerifyParseTimeZoneNumericUTCOffsetSuccess(isolate, "\u221219:33", -1, 19, 33,
+                                             kUndefined, kUndefined);
 
   // TimeZoneUTCOffsetSign TimeZoneUTCOffsetHour TimeZoneUTCOffsetMinute
   VerifyParseTimeZoneNumericUTCOffsetSuccess(isolate, "+0100", 1, 1, 0,
@@ -2327,8 +2099,8 @@ TEST(TimeZoneNumericUTCOffsetBasic) {
                                              kUndefined, kUndefined);
   VerifyParseTimeZoneNumericUTCOffsetSuccess(isolate, "-2048", -1, 20, 48,
                                              kUndefined, kUndefined);
-  VerifyParseTimeZoneNumericUTCOffsetSuccess(isolate, u8"\u22121933", -1, 19,
-                                             33, kUndefined, kUndefined);
+  VerifyParseTimeZoneNumericUTCOffsetSuccess(isolate, "\u22121933", -1, 19, 33,
+                                             kUndefined, kUndefined);
 
   // TimeZoneUTCOffsetSign TimeZoneUTCOffsetHour : TimeZoneUTCOffsetMinute :
   // TimeZoneUTCOffsetSecond TimeZoneUTCOffsetFractionopt
@@ -2338,8 +2110,8 @@ TEST(TimeZoneNumericUTCOffsetBasic) {
                                              33, kUndefined);
   VerifyParseTimeZoneNumericUTCOffsetSuccess(isolate, "-09:59:00", -1, 9, 59,
                                              00, kUndefined);
-  VerifyParseTimeZoneNumericUTCOffsetSuccess(isolate, u8"\u221218:53:22", -1,
-                                             18, 53, 22, kUndefined);
+  VerifyParseTimeZoneNumericUTCOffsetSuccess(isolate, "\u221218:53:22", -1, 18,
+                                             53, 22, kUndefined);
 
   VerifyParseTimeZoneNumericUTCOffsetSuccess(isolate, "+01:00:59.987654321", 1,
                                              1, 0, 59, 987654321);
@@ -2362,7 +2134,7 @@ TEST(TimeZoneNumericUTCOffsetBasic) {
                                              kUndefined);
   VerifyParseTimeZoneNumericUTCOffsetSuccess(isolate, "-095900", -1, 9, 59, 00,
                                              kUndefined);
-  VerifyParseTimeZoneNumericUTCOffsetSuccess(isolate, u8"\u2212185322", -1, 18,
+  VerifyParseTimeZoneNumericUTCOffsetSuccess(isolate, "\u2212185322", -1, 18,
                                              53, 22, kUndefined);
 
   VerifyParseTimeZoneNumericUTCOffsetSuccess(isolate, "+010059.987654321", 1, 1,
@@ -2396,15 +2168,15 @@ TEST(TimeZoneNumericUTCOffsetIllegal) {
   // Wrong TimeZoneUTCOffsetHour
   VERIFY_PARSE_FAIL(TimeZoneNumericUTCOffset, "+24");
   VERIFY_PARSE_FAIL(TimeZoneNumericUTCOffset, "-24");
-  VERIFY_PARSE_FAIL(TimeZoneNumericUTCOffset, u8"\u221224");
+  VERIFY_PARSE_FAIL(TimeZoneNumericUTCOffset, "\u221224");
   VERIFY_PARSE_FAIL(TimeZoneNumericUTCOffset, "+ab");
   VERIFY_PARSE_FAIL(TimeZoneNumericUTCOffset, "-2a");
-  VERIFY_PARSE_FAIL(TimeZoneNumericUTCOffset, u8"\u22122Z");
+  VERIFY_PARSE_FAIL(TimeZoneNumericUTCOffset, "\u22122Z");
   // Single digit is not TimeZoneUTCOffsetHour
   VERIFY_PARSE_FAIL(TimeZoneNumericUTCOffset, "+0");
   VERIFY_PARSE_FAIL(TimeZoneNumericUTCOffset, "+2");
   VERIFY_PARSE_FAIL(TimeZoneNumericUTCOffset, "-1");
-  VERIFY_PARSE_FAIL(TimeZoneNumericUTCOffset, u8"\u22123");
+  VERIFY_PARSE_FAIL(TimeZoneNumericUTCOffset, "\u22123");
 
   // Extra
   VERIFY_PARSE_FAIL(TimeZoneNumericUTCOffset, "+23 ");
@@ -2417,24 +2189,24 @@ TEST(TimeZoneNumericUTCOffsetIllegal) {
   VERIFY_PARSE_FAIL(TimeZoneNumericUTCOffset, "+01:0");
   VERIFY_PARSE_FAIL(TimeZoneNumericUTCOffset, "+21:5");
   VERIFY_PARSE_FAIL(TimeZoneNumericUTCOffset, "-20:4");
-  VERIFY_PARSE_FAIL(TimeZoneNumericUTCOffset, u8"\u221219:3");
+  VERIFY_PARSE_FAIL(TimeZoneNumericUTCOffset, "\u221219:3");
   // TimeZoneUTCOffsetMinute out of range
   VERIFY_PARSE_FAIL(TimeZoneNumericUTCOffset, "+01:60");
   VERIFY_PARSE_FAIL(TimeZoneNumericUTCOffset, "+21:5a");
   VERIFY_PARSE_FAIL(TimeZoneNumericUTCOffset, "-20:4f");
-  VERIFY_PARSE_FAIL(TimeZoneNumericUTCOffset, u8"\u221219:a0");
+  VERIFY_PARSE_FAIL(TimeZoneNumericUTCOffset, "\u221219:a0");
 
   // Wrong TimeZoneUTCOffsetSign TimeZoneUTCOffsetHour TimeZoneUTCOffsetMinute
   // single digit TimeZoneUTCOffsetMinute
   VERIFY_PARSE_FAIL(TimeZoneNumericUTCOffset, "+010");
   VERIFY_PARSE_FAIL(TimeZoneNumericUTCOffset, "+215");
   VERIFY_PARSE_FAIL(TimeZoneNumericUTCOffset, "-204");
-  VERIFY_PARSE_FAIL(TimeZoneNumericUTCOffset, u8"\u2212193");
+  VERIFY_PARSE_FAIL(TimeZoneNumericUTCOffset, "\u2212193");
   // TimeZoneUTCOffsetMinute out of range
   VERIFY_PARSE_FAIL(TimeZoneNumericUTCOffset, "+0160");
   VERIFY_PARSE_FAIL(TimeZoneNumericUTCOffset, "+215a");
   VERIFY_PARSE_FAIL(TimeZoneNumericUTCOffset, "-204f");
-  VERIFY_PARSE_FAIL(TimeZoneNumericUTCOffset, u8"\u221219a0");
+  VERIFY_PARSE_FAIL(TimeZoneNumericUTCOffset, "\u221219a0");
 
   // TimeZoneUTCOffsetSign TimeZoneUTCOffsetHour : TimeZoneUTCOffsetMinute :
   // TimeZoneUTCOffsetSecond TimeZoneUTCOffsetFractionopt with : here but not

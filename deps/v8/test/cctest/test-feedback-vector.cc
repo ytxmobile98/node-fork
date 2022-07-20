@@ -2,18 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/init/v8.h"
-#include "test/cctest/cctest.h"
+#include "test/cctest/test-feedback-vector.h"
 
 #include "src/api/api-inl.h"
-#include "src/codegen/macro-assembler.h"
-#include "src/debug/debug.h"
 #include "src/execution/execution.h"
-#include "src/handles/global-handles.h"
 #include "src/heap/factory.h"
 #include "src/objects/feedback-cell-inl.h"
 #include "src/objects/objects-inl.h"
-#include "test/cctest/test-feedback-vector.h"
+#include "test/cctest/cctest.h"
 
 namespace v8 {
 namespace internal {
@@ -156,7 +152,7 @@ TEST(VectorICMetadata) {
 
 TEST(VectorCallICStates) {
   if (!i::FLAG_use_ic) return;
-  if (i::FLAG_always_opt) return;
+  if (i::FLAG_always_turbofan) return;
   FLAG_allow_natives_syntax = true;
 
   CcTest::InitializeVM();
@@ -187,7 +183,7 @@ TEST(VectorCallICStates) {
 // Test the Call IC states transfer with Function.prototype.apply
 TEST(VectorCallICStateApply) {
   if (!i::FLAG_use_ic) return;
-  if (i::FLAG_always_opt) return;
+  if (i::FLAG_always_turbofan) return;
   FLAG_allow_natives_syntax = true;
 
   CcTest::InitializeVM();
@@ -229,7 +225,7 @@ TEST(VectorCallICStateApply) {
 
 TEST(VectorCallFeedback) {
   if (!i::FLAG_use_ic) return;
-  if (i::FLAG_always_opt) return;
+  if (i::FLAG_always_turbofan) return;
   FLAG_allow_natives_syntax = true;
 
   CcTest::InitializeVM();
@@ -261,7 +257,7 @@ TEST(VectorCallFeedback) {
 
 TEST(VectorPolymorphicCallFeedback) {
   if (!i::FLAG_use_ic) return;
-  if (i::FLAG_always_opt) return;
+  if (i::FLAG_always_turbofan) return;
   FLAG_allow_natives_syntax = true;
   FLAG_lazy_feedback_allocation = false;
 
@@ -294,7 +290,7 @@ TEST(VectorPolymorphicCallFeedback) {
 
 TEST(VectorCallFeedbackForArray) {
   if (!i::FLAG_use_ic) return;
-  if (i::FLAG_always_opt) return;
+  if (i::FLAG_always_turbofan) return;
   FLAG_allow_natives_syntax = true;
 
   CcTest::InitializeVM();
@@ -325,7 +321,7 @@ TEST(VectorCallFeedbackForArray) {
 
 TEST(VectorCallCounts) {
   if (!i::FLAG_use_ic) return;
-  if (i::FLAG_always_opt) return;
+  if (i::FLAG_always_turbofan) return;
   FLAG_allow_natives_syntax = true;
 
   CcTest::InitializeVM();
@@ -358,7 +354,7 @@ TEST(VectorCallCounts) {
 
 TEST(VectorConstructCounts) {
   if (!i::FLAG_use_ic) return;
-  if (i::FLAG_always_opt) return;
+  if (i::FLAG_always_turbofan) return;
   FLAG_allow_natives_syntax = true;
 
   CcTest::InitializeVM();
@@ -393,7 +389,7 @@ TEST(VectorConstructCounts) {
 
 TEST(VectorSpeculationMode) {
   if (!i::FLAG_use_ic) return;
-  if (i::FLAG_always_opt) return;
+  if (i::FLAG_always_turbofan) return;
   FLAG_allow_natives_syntax = true;
 
   CcTest::InitializeVM();
@@ -429,8 +425,8 @@ TEST(VectorSpeculationMode) {
 
 TEST(VectorCallSpeculationModeAndFeedbackContent) {
   if (!i::FLAG_use_ic) return;
-  if (!i::FLAG_opt) return;
-  if (i::FLAG_always_opt) return;
+  if (!i::FLAG_turbofan) return;
+  if (i::FLAG_always_turbofan) return;
   if (i::FLAG_jitless) return;
   FLAG_allow_natives_syntax = true;
 
@@ -466,7 +462,7 @@ TEST(VectorCallSpeculationModeAndFeedbackContent) {
 
 TEST(VectorLoadICStates) {
   if (!i::FLAG_use_ic) return;
-  if (i::FLAG_always_opt) return;
+  if (i::FLAG_always_turbofan) return;
   FLAG_allow_natives_syntax = true;
 
   CcTest::InitializeVM();
@@ -521,7 +517,7 @@ TEST(VectorLoadICStates) {
 
 TEST(VectorLoadGlobalICSlotSharing) {
   if (!i::FLAG_use_ic) return;
-  if (i::FLAG_always_opt) return;
+  if (i::FLAG_always_turbofan) return;
   FLAG_allow_natives_syntax = true;
 
   CcTest::InitializeVM();
@@ -560,7 +556,7 @@ TEST(VectorLoadGlobalICSlotSharing) {
 
 TEST(VectorLoadICOnSmi) {
   if (!i::FLAG_use_ic) return;
-  if (i::FLAG_always_opt) return;
+  if (i::FLAG_always_turbofan) return;
   FLAG_allow_natives_syntax = true;
 
   CcTest::InitializeVM();
@@ -619,7 +615,7 @@ TEST(VectorLoadICOnSmi) {
 
 TEST(ReferenceContextAllocatesNoSlots) {
   if (!i::FLAG_use_ic) return;
-  if (i::FLAG_always_opt) return;
+  if (i::FLAG_always_turbofan) return;
   FLAG_allow_natives_syntax = true;
 
   CcTest::InitializeVM();
@@ -766,7 +762,7 @@ TEST(ReferenceContextAllocatesNoSlots) {
 
 TEST(VectorStoreICBasic) {
   if (!i::FLAG_use_ic) return;
-  if (i::FLAG_always_opt) return;
+  if (i::FLAG_always_turbofan) return;
   FLAG_allow_natives_syntax = true;
 
   CcTest::InitializeVM();
@@ -794,7 +790,7 @@ TEST(VectorStoreICBasic) {
 
 TEST(DefineNamedOwnIC) {
   if (!i::FLAG_use_ic) return;
-  if (i::FLAG_always_opt) return;
+  if (i::FLAG_always_turbofan) return;
   FLAG_allow_natives_syntax = true;
 
   CcTest::InitializeVM();

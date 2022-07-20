@@ -27,15 +27,11 @@
 
 #include <stdlib.h>
 
-#include "src/base/platform/platform.h"
 #include "src/codegen/arm64/assembler-arm64-inl.h"
 #include "src/codegen/macro-assembler-inl.h"
 #include "src/deoptimizer/deoptimizer.h"
-#include "src/execution/simulator.h"
 #include "src/heap/factory.h"
-#include "src/init/v8.h"
 #include "src/objects/objects-inl.h"
-#include "src/objects/smi.h"
 #include "src/utils/ostreams.h"
 #include "test/cctest/cctest.h"
 #include "test/common/assembler-tester.h"
@@ -56,6 +52,8 @@ TEST(EmbeddedObj) {
   auto buffer = AllocateAssemblerBuffer();
   MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes,
                       buffer->CreateView());
+
+  AssemblerBufferWriteScope rw_scope(*buffer);
 
   Handle<HeapObject> old_array = isolate->factory()->NewFixedArray(2000);
   Handle<HeapObject> my_array = isolate->factory()->NewFixedArray(1000);
@@ -100,7 +98,9 @@ TEST(DeoptExitSizeIsFixed) {
   MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes,
                       buffer->CreateView());
 
-  STATIC_ASSERT(static_cast<int>(kFirstDeoptimizeKind) == 0);
+  AssemblerBufferWriteScope rw_scope(*buffer);
+
+  static_assert(static_cast<int>(kFirstDeoptimizeKind) == 0);
   for (int i = 0; i < kDeoptimizeKindCount; i++) {
     DeoptimizeKind kind = static_cast<DeoptimizeKind>(i);
     Label before_exit;

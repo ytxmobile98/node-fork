@@ -8,6 +8,7 @@
 #include "src/base/macros.h"
 #include "src/baseline/baseline-assembler.h"
 #include "src/codegen/x64/register-x64.h"
+#include "src/objects/feedback-vector.h"
 
 namespace v8 {
 namespace internal {
@@ -96,7 +97,6 @@ MemOperand BaselineAssembler::FeedbackVectorOperand() {
 }
 
 void BaselineAssembler::Bind(Label* label) { __ bind(label); }
-void BaselineAssembler::BindWithoutJumpTarget(Label* label) { __ bind(label); }
 
 void BaselineAssembler::JumpTarget() {
   // NOP on x64.
@@ -371,6 +371,31 @@ void BaselineAssembler::StoreTaggedFieldNoWriteBarrier(Register target,
                                                        int offset,
                                                        Register value) {
   __ StoreTaggedField(FieldOperand(target, offset), value);
+}
+
+void BaselineAssembler::TryLoadOptimizedOsrCode(Register scratch_and_result,
+                                                Register feedback_vector,
+                                                FeedbackSlot slot,
+                                                Label* on_result,
+                                                Label::Distance distance) {
+  Label fallthrough;
+  LoadTaggedPointerField(scratch_and_result, feedback_vector,
+                         FeedbackVector::OffsetOfElementAt(slot.ToInt()));
+  __ LoadWeakValue(scratch_and_result, &fallthrough);
+
+  // Is it marked_for_deoptimization? If yes, clear the slot.
+  {
+    DCHECK(!AreAliased(scratch_and_result, kScratchRegister));
+    __ TestCodeTIsMarkedForDeoptimization(scratch_and_result, kScratchRegister);
+    __ j(equal, on_result, distance);
+    __ StoreTaggedField(
+        FieldOperand(feedback_vector,
+                     FeedbackVector::OffsetOfElementAt(slot.ToInt())),
+        __ ClearedValue());
+  }
+
+  __ bind(&fallthrough);
+  __ Move(scratch_and_result, 0);
 }
 
 void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(

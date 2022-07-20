@@ -261,6 +261,9 @@ BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags2,
                     has_static_private_methods_or_accessors,
                     SharedFunctionInfo::HasStaticPrivateMethodsOrAccessorsBit)
 
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags2, is_sparkplug_compiling,
+                    SharedFunctionInfo::IsSparkplugCompilingBit)
+
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags2, maglev_compilation_failed,
                     SharedFunctionInfo::MaglevCompilationFailedBit)
 
@@ -305,24 +308,13 @@ BailoutReason SharedFunctionInfo::disabled_optimization_reason() const {
   return DisabledOptimizationReasonBits::decode(flags(kRelaxedLoad));
 }
 
-OSRCodeCacheStateOfSFI SharedFunctionInfo::osr_code_cache_state() const {
-  return OsrCodeCacheStateBits::decode(flags(kRelaxedLoad));
-}
-
-void SharedFunctionInfo::set_osr_code_cache_state(
-    OSRCodeCacheStateOfSFI state) {
-  int hints = flags(kRelaxedLoad);
-  hints = OsrCodeCacheStateBits::update(hints, state);
-  set_flags(hints, kRelaxedStore);
-}
-
 LanguageMode SharedFunctionInfo::language_mode() const {
-  STATIC_ASSERT(LanguageModeSize == 2);
+  static_assert(LanguageModeSize == 2);
   return construct_language_mode(IsStrictBit::decode(flags(kRelaxedLoad)));
 }
 
 void SharedFunctionInfo::set_language_mode(LanguageMode language_mode) {
-  STATIC_ASSERT(LanguageModeSize == 2);
+  static_assert(LanguageModeSize == 2);
   // We only allow language mode transitions that set the same language mode
   // again or go up in the chain:
   DCHECK(is_sloppy(this->language_mode()) || is_strict(language_mode));
@@ -333,7 +325,7 @@ void SharedFunctionInfo::set_language_mode(LanguageMode language_mode) {
 }
 
 FunctionKind SharedFunctionInfo::kind() const {
-  STATIC_ASSERT(FunctionKindBits::kSize == kFunctionKindBitSize);
+  static_assert(FunctionKindBits::kSize == kFunctionKindBitSize);
   return FunctionKindBits::decode(flags(kRelaxedLoad));
 }
 
@@ -378,7 +370,7 @@ int SharedFunctionInfo::function_map_index() const {
 }
 
 void SharedFunctionInfo::set_function_map_index(int index) {
-  STATIC_ASSERT(Context::LAST_FUNCTION_MAP_INDEX <=
+  static_assert(Context::LAST_FUNCTION_MAP_INDEX <=
                 Context::FIRST_FUNCTION_MAP_INDEX + FunctionMapIndexBits::kMax);
   DCHECK_LE(Context::FIRST_FUNCTION_MAP_INDEX, index);
   DCHECK_LE(index, Context::LAST_FUNCTION_MAP_INDEX);
@@ -557,9 +549,14 @@ FunctionTemplateInfo SharedFunctionInfo::get_api_func_data() const {
   return FunctionTemplateInfo::cast(function_data(kAcquireLoad));
 }
 
-bool SharedFunctionInfo::HasBytecodeArray() const {
-  Object data = function_data(kAcquireLoad);
-  return data.IsBytecodeArray() || data.IsInterpreterData() || data.IsCodeT();
+DEF_GETTER(SharedFunctionInfo, HasBytecodeArray, bool) {
+  Object data = function_data(cage_base, kAcquireLoad);
+  if (!data.IsHeapObject()) return false;
+  InstanceType instance_type =
+      HeapObject::cast(data).map(cage_base).instance_type();
+  return InstanceTypeChecker::IsBytecodeArray(instance_type) ||
+         InstanceTypeChecker::IsInterpreterData(instance_type) ||
+         InstanceTypeChecker::IsCodeT(instance_type);
 }
 
 template <typename IsolateT>
@@ -643,28 +640,28 @@ bool SharedFunctionInfo::ShouldFlushCode(
   return bytecode.IsOld();
 }
 
-CodeT SharedFunctionInfo::InterpreterTrampoline() const {
-  DCHECK(HasInterpreterData());
-  return interpreter_data().interpreter_trampoline();
+DEF_GETTER(SharedFunctionInfo, InterpreterTrampoline, CodeT) {
+  DCHECK(HasInterpreterData(cage_base));
+  return interpreter_data(cage_base).interpreter_trampoline(cage_base);
 }
 
-bool SharedFunctionInfo::HasInterpreterData() const {
-  Object data = function_data(kAcquireLoad);
-  if (data.IsCodeT()) {
+DEF_GETTER(SharedFunctionInfo, HasInterpreterData, bool) {
+  Object data = function_data(cage_base, kAcquireLoad);
+  if (data.IsCodeT(cage_base)) {
     CodeT baseline_code = CodeT::cast(data);
     DCHECK_EQ(baseline_code.kind(), CodeKind::BASELINE);
-    data = baseline_code.bytecode_or_interpreter_data();
+    data = baseline_code.bytecode_or_interpreter_data(cage_base);
   }
-  return data.IsInterpreterData();
+  return data.IsInterpreterData(cage_base);
 }
 
-InterpreterData SharedFunctionInfo::interpreter_data() const {
-  DCHECK(HasInterpreterData());
-  Object data = function_data(kAcquireLoad);
-  if (data.IsCodeT()) {
+DEF_GETTER(SharedFunctionInfo, interpreter_data, InterpreterData) {
+  DCHECK(HasInterpreterData(cage_base));
+  Object data = function_data(cage_base, kAcquireLoad);
+  if (data.IsCodeT(cage_base)) {
     CodeT baseline_code = CodeT::cast(data);
     DCHECK_EQ(baseline_code.kind(), CodeKind::BASELINE);
-    data = baseline_code.bytecode_or_interpreter_data();
+    data = baseline_code.bytecode_or_interpreter_data(cage_base);
   }
   return InterpreterData::cast(data);
 }
@@ -676,24 +673,25 @@ void SharedFunctionInfo::set_interpreter_data(
   set_function_data(interpreter_data, kReleaseStore);
 }
 
-bool SharedFunctionInfo::HasBaselineCode() const {
-  Object data = function_data(kAcquireLoad);
-  if (data.IsCodeT()) {
+DEF_GETTER(SharedFunctionInfo, HasBaselineCode, bool) {
+  Object data = function_data(cage_base, kAcquireLoad);
+  if (data.IsCodeT(cage_base)) {
     DCHECK_EQ(CodeT::cast(data).kind(), CodeKind::BASELINE);
     return true;
   }
   return false;
 }
 
-CodeT SharedFunctionInfo::baseline_code(AcquireLoadTag) const {
-  DCHECK(HasBaselineCode());
-  return CodeT::cast(function_data(kAcquireLoad));
+DEF_ACQUIRE_GETTER(SharedFunctionInfo, baseline_code, CodeT) {
+  DCHECK(HasBaselineCode(cage_base));
+  return CodeT::cast(function_data(cage_base, kAcquireLoad));
 }
 
 void SharedFunctionInfo::set_baseline_code(CodeT baseline_code,
-                                           ReleaseStoreTag) {
+                                           ReleaseStoreTag tag,
+                                           WriteBarrierMode mode) {
   DCHECK_EQ(baseline_code.kind(), CodeKind::BASELINE);
-  set_function_data(baseline_code, kReleaseStore);
+  set_function_data(baseline_code, tag, mode);
 }
 
 void SharedFunctionInfo::FlushBaselineCode() {
@@ -719,8 +717,8 @@ bool SharedFunctionInfo::HasWasmCapiFunctionData() const {
   return function_data(kAcquireLoad).IsWasmCapiFunctionData();
 }
 
-bool SharedFunctionInfo::HasWasmOnFulfilledData() const {
-  return function_data(kAcquireLoad).IsWasmOnFulfilledData();
+bool SharedFunctionInfo::HasWasmResumeData() const {
+  return function_data(kAcquireLoad).IsWasmResumeData();
 }
 
 AsmWasmData SharedFunctionInfo::asm_wasm_data() const {
@@ -825,21 +823,22 @@ void SharedFunctionInfo::ClearPreparseData() {
   DisallowGarbageCollection no_gc;
   Heap* heap = GetHeapFromWritableObject(data);
 
-  // Swap the map.
-  heap->NotifyObjectLayoutChange(data, no_gc);
-  STATIC_ASSERT(UncompiledDataWithoutPreparseData::kSize <
+  // We are basically trimming that object to its supertype, so recorded slots
+  // within the object don't need to be invalidated.
+  heap->NotifyObjectLayoutChange(data, no_gc, InvalidateRecordedSlots::kNo);
+  static_assert(UncompiledDataWithoutPreparseData::kSize <
                 UncompiledDataWithPreparseData::kSize);
-  STATIC_ASSERT(UncompiledDataWithoutPreparseData::kSize ==
+  static_assert(UncompiledDataWithoutPreparseData::kSize ==
                 UncompiledData::kHeaderSize);
+
+  // Fill the remaining space with filler and clear slots in the trimmed area.
+  heap->NotifyObjectSizeChange(data, UncompiledDataWithPreparseData::kSize,
+                               UncompiledDataWithoutPreparseData::kSize,
+                               ClearRecordedSlots::kYes);
+
+  // Swap the map.
   data.set_map(GetReadOnlyRoots().uncompiled_data_without_preparse_data_map(),
                kReleaseStore);
-
-  // Fill the remaining space with filler.
-  heap->CreateFillerObjectAt(
-      data.address() + UncompiledDataWithoutPreparseData::kSize,
-      UncompiledDataWithPreparseData::kSize -
-          UncompiledDataWithoutPreparseData::kSize,
-      ClearRecordedSlots::kYes);
 
   // Ensure that the clear was successful.
   DCHECK(HasUncompiledDataWithoutPreparseData());

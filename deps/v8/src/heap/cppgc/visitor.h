@@ -34,6 +34,11 @@ class VisitorBase : public cppgc::Visitor {
   void TraceRootForTesting(const Persistent& p, const SourceLocation& loc) {
     TraceRoot(p, loc);
   }
+
+  template <typename T>
+  static void TraceRawForTesting(cppgc::Visitor* visitor, const T* t) {
+    visitor->TraceImpl(t);
+  }
 };
 
 // Regular visitor that additionally allows for conservative tracing.
@@ -56,6 +61,8 @@ class ConservativeTracingVisitor {
   VisitFullyConstructedConservatively(HeapObjectHeader&);
   virtual void VisitInConstructionConservatively(HeapObjectHeader&,
                                                  TraceConservativelyCallback) {}
+
+  void V8_EXPORT_PRIVATE TryTracePointerConservatively(Address address);
 
   HeapBase& heap_;
   PageBackend& page_backend_;

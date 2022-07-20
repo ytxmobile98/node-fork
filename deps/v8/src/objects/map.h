@@ -33,8 +33,10 @@ enum InstanceType : uint16_t;
   V(FixedDoubleArray)
 
 #define POINTER_VISITOR_ID_LIST(V)      \
+  V(AccessorInfo)                       \
   V(AllocationSite)                     \
   V(BytecodeArray)                      \
+  V(CallHandlerInfo)                    \
   V(Cell)                               \
   V(Code)                               \
   V(CodeDataContainer)                  \
@@ -45,6 +47,7 @@ enum InstanceType : uint16_t;
   V(FreeSpace)                          \
   V(JSApiObject)                        \
   V(JSArrayBuffer)                      \
+  V(JSAtomicsMutex)                     \
   V(JSDataView)                         \
   V(JSExternalObject)                   \
   V(JSFinalizationRegistry)             \
@@ -81,7 +84,7 @@ enum InstanceType : uint16_t;
   IF_WASM(V, WasmInstanceObject)        \
   IF_WASM(V, WasmInternalFunction)      \
   IF_WASM(V, WasmJSFunctionData)        \
-  IF_WASM(V, WasmOnFulfilledData)       \
+  IF_WASM(V, WasmResumeData)            \
   IF_WASM(V, WasmStruct)                \
   IF_WASM(V, WasmSuspenderObject)       \
   IF_WASM(V, WasmTypeInfo)              \
@@ -237,6 +240,8 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   // is equal to the instance size).
   inline int UsedInstanceSize() const;
 
+  inline bool HasOutOfObjectProperties() const;
+
   // Tells how many unused property fields (in-object or out-of object) are
   // available in the instance (only used for JSObject in fast mode).
   inline int UnusedPropertyFields() const;
@@ -300,17 +305,17 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   };
 
   // Ensure that Torque-defined bit widths for |bit_field3| are as expected.
-  STATIC_ASSERT(Bits3::EnumLengthBits::kSize == kDescriptorIndexBitCount);
-  STATIC_ASSERT(Bits3::NumberOfOwnDescriptorsBits::kSize ==
+  static_assert(Bits3::EnumLengthBits::kSize == kDescriptorIndexBitCount);
+  static_assert(Bits3::NumberOfOwnDescriptorsBits::kSize ==
                 kDescriptorIndexBitCount);
 
-  STATIC_ASSERT(Bits3::NumberOfOwnDescriptorsBits::kMax >=
+  static_assert(Bits3::NumberOfOwnDescriptorsBits::kMax >=
                 kMaxNumberOfDescriptors);
 
   static const int kSlackTrackingCounterStart = 7;
   static const int kSlackTrackingCounterEnd = 1;
   static const int kNoSlackTracking = 0;
-  STATIC_ASSERT(kSlackTrackingCounterStart <=
+  static_assert(kSlackTrackingCounterStart <=
                 Bits3::ConstructionCounterBits::kMax);
 
   // Inobject slack tracking is the way to reclaim unused inobject space.
@@ -426,6 +431,7 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   inline bool has_nonextensible_elements() const;
   inline bool has_sealed_elements() const;
   inline bool has_frozen_elements() const;
+  inline bool has_shared_array_elements() const;
 
   // Weakly checks whether a map is detached from all transition trees. If this
   // returns true, the map is guaranteed to be detached. If it returns false,
@@ -500,8 +506,6 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
 
   FieldCounts GetFieldCounts() const;
   int NumberOfFields(ConcurrencyMode cmode) const;
-
-  bool HasOutOfObjectProperties() const;
 
   // TODO(ishell): candidate with JSObject::MigrateToMap().
   bool InstancesNeedRewriting(Map target, ConcurrencyMode cmode) const;
@@ -816,7 +820,7 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
 
   static const int kMaxPreAllocatedPropertyFields = 255;
 
-  STATIC_ASSERT(kInstanceTypeOffset == Internals::kMapInstanceTypeOffset);
+  static_assert(kInstanceTypeOffset == Internals::kMapInstanceTypeOffset);
 
   class BodyDescriptor;
 

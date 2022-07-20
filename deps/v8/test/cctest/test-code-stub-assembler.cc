@@ -10,7 +10,7 @@
 #include "src/builtins/builtins-promise-gen.h"
 #include "src/builtins/builtins-promise.h"
 #include "src/builtins/builtins-string-gen.h"
-#include "src/codegen/code-factory.h"
+#include "src/builtins/builtins-utils-inl.h"
 #include "src/codegen/code-stub-assembler.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/compiler/node.h"
@@ -18,15 +18,12 @@
 #include "src/execution/isolate.h"
 #include "src/heap/heap-inl.h"
 #include "src/numbers/hash-seed-inl.h"
-#include "src/objects/hash-table-inl.h"
-#include "src/objects/heap-number-inl.h"
-#include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
+#include "src/objects/js-promise-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/ordered-hash-table-inl.h"
 #include "src/objects/promise-inl.h"
 #include "src/objects/smi.h"
-#include "src/objects/struct-inl.h"
 #include "src/objects/transitions-inl.h"
 #include "src/strings/char-predicates.h"
 #include "test/cctest/cctest-utils.h"
@@ -237,7 +234,7 @@ TEST(ToUint32) {
   };
   // clang-format on
 
-  STATIC_ASSERT(arraysize(inputs) == arraysize(expectations));
+  static_assert(arraysize(inputs) == arraysize(expectations));
 
   const int test_count = arraysize(inputs);
   for (int i = 0; i < test_count; i++) {
@@ -318,7 +315,7 @@ TEST(IsValidPositiveSmi) {
 #endif
 }
 
-TEST(ConvertToRelativeIndex) {
+TEST(ConvertAndClampRelativeIndex) {
   Isolate* isolate(CcTest::InitIsolateOnce());
 
   const int kNumParams = 3;
@@ -335,7 +332,7 @@ TEST(ConvertToRelativeIndex) {
     TNode<UintPtrT> expected =
         m.ChangeUintPtrNumberToUintPtr(expected_relative_index);
 
-    TNode<UintPtrT> result = m.ConvertToRelativeIndex(index, length);
+    TNode<UintPtrT> result = m.ConvertAndClampRelativeIndex(index, length);
 
     m.Return(m.SelectBooleanConstant(m.WordEqual(result, expected)));
   }
@@ -1061,7 +1058,7 @@ TEST(TransitionLookup) {
   Handle<Object> expect_not_found(Smi::FromInt(kNotFound), isolate);
 
   const int ATTRS_COUNT = (READ_ONLY | DONT_ENUM | DONT_DELETE) + 1;
-  STATIC_ASSERT(ATTRS_COUNT == 8);
+  static_assert(ATTRS_COUNT == 8);
 
   const int kKeysCount = 300;
   Handle<Map> root_map = Map::Create(isolate, 0);
@@ -1457,7 +1454,7 @@ TEST(TryGetOwnProperty) {
           factory->NewFunctionForTesting(factory->empty_string())),
       factory->NewPrivateSymbol(),
   };
-  STATIC_ASSERT(arraysize(values) < arraysize(names));
+  static_assert(arraysize(values) < arraysize(names));
 
   base::RandomNumberGenerator rand_gen(FLAG_random_seed);
 
@@ -2454,9 +2451,13 @@ TEST(IsDebugActive) {
   *debug_is_active = false;
 }
 
+#if !defined(V8_OS_ANDROID)
 // Ensure that the kShortBuiltinCallsOldSpaceSizeThreshold constant can be used
 // for detecting whether the machine has >= 4GB of physical memory by checking
 // the max old space size.
+//
+// Not on Android as short builtins do not depend on RAM on this platform, see
+// comment in isolate.cc.
 TEST(ShortBuiltinCallsThreshold) {
   if (!V8_SHORT_BUILTIN_CALLS_BOOL) return;
 
@@ -2480,6 +2481,7 @@ TEST(ShortBuiltinCallsThreshold) {
   i::Heap::GenerationSizesFromHeapSize(heap_size, &young, &old);
   CHECK_GE(old, kShortBuiltinCallsOldSpaceSizeThreshold);
 }
+#endif  // !defined(V8_OS_ANDROID)
 
 TEST(CallBuiltin) {
   Isolate* isolate(CcTest::InitIsolateOnce());
